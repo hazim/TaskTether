@@ -35,30 +35,23 @@ class GoogleTasksManager: ObservableObject {
     // MARK: - Task List Management
     
     private func findOrCreateTaskTetherList() {
-        print("GoogleTasksManager: attempting to find/create list")
         guard let token = authManager.getAccessToken() else {
             print("GoogleTasksManager: no access token found ❌")
             errorMessage = "No access token"
             isConnected = false
             return
         }
-        print("GoogleTasksManager: got token ✅ making API call...")
         
         var request = URLRequest(url: URL(string: "\(baseURL)/users/@me/lists")!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("GoogleTasksManager: network error ❌ \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.errorMessage = error.localizedDescription
                     self.isConnected = false
                 }
                 return
-            }
-            
-            if let data = data, let rawResponse = String(data: data, encoding: .utf8) {
-                print("GoogleTasksManager: raw response → \(rawResponse)")
             }
             
             guard let data = data,

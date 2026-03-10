@@ -19,7 +19,11 @@ class RemindersManager: ObservableObject {
     
     // MARK: - Permission
     
+    private var hasRequestedAccess = false
+    
     func requestAccess() {
+        guard !hasRequestedAccess else { return }
+        hasRequestedAccess = true
         store.requestFullAccessToReminders { granted, error in
             DispatchQueue.main.async {
                 if granted {
