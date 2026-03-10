@@ -147,6 +147,9 @@ class GoogleAuthManager: ObservableObject {
         refreshToken = loadFromKeychain(key: "tasktether_refresh_token")
         if accessToken != nil {
             isAuthenticated = true
+            print("GoogleAuthManager: loaded token from keychain ✅")
+        } else {
+            print("GoogleAuthManager: no token in keychain ❌")
         }
     }
 

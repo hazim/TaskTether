@@ -55,21 +55,38 @@ struct StatusDot: View {
 // MARK: - Content View
 
 struct ContentView: View {
-    @StateObject private var authManager = GoogleAuthManager()
-    @StateObject private var remindersManager = RemindersManager()
+    @StateObject private var authManager: GoogleAuthManager
+    @StateObject private var remindersManager: RemindersManager
+    @StateObject private var googleTasksManager: GoogleTasksManager
+    
+    init() {
+        let auth = GoogleAuthManager()
+        let reminders = RemindersManager()
+        let googleTasks = GoogleTasksManager(authManager: auth)
+        _authManager = StateObject(wrappedValue: auth)
+        _remindersManager = StateObject(wrappedValue: reminders)
+        _googleTasksManager = StateObject(wrappedValue: googleTasks)
+    }
     
     var body: some View {
-            Group {
-                if authManager.isAuthenticated {
-                    MainView(authManager: authManager, remindersManager: remindersManager)
-                } else {
-                    ConnectView(authManager: authManager)
-                }
-            }
-            .onAppear {
-                remindersManager.requestAccess()
+        Group {
+            if authManager.isAuthenticated {
+                MainView(
+                    authManager: authManager,
+                    remindersManager: remindersManager,
+                    googleTasksManager: googleTasksManager
+                )
+            } else {
+                ConnectView(authManager: authManager)
             }
         }
+        .onAppear {
+            remindersManager.requestAccess()
+            if authManager.isAuthenticated {
+                googleTasksManager.setup()
+            }
+        }
+    }
 }
 
 // MARK: - Connect View
@@ -138,6 +155,7 @@ struct ConnectView: View {
 struct MainView: View {
     @ObservedObject var authManager: GoogleAuthManager
     @ObservedObject var remindersManager: RemindersManager
+    @ObservedObject var googleTasksManager: GoogleTasksManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -151,14 +169,14 @@ struct MainView: View {
             // Service status
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
-                    StatusDot(status: .connected)
-                        .help("Reminders: Connected")
+                    StatusDot(status: remindersManager.isAuthorised ? .connected : .error)
+                        .help(remindersManager.isAuthorised ? "Reminders: Connected" : "Reminders: Not connected")
                     Text("Reminders")
                         .font(.system(size: 12))
                 }
                 HStack(spacing: 8) {
-                    StatusDot(status: .connected)
-                        .help("Google Tasks: Connected")
+                    StatusDot(status: googleTasksManager.isConnected ? .connected : .error)
+                        .help(googleTasksManager.isConnected ? "Google Tasks: Connected" : "Google Tasks: Not connected")
                     Text("Google Tasks")
                         .font(.system(size: 12))
                 }
@@ -212,5 +230,8 @@ struct MainView: View {
         }
         .padding(16)
         .frame(width: 260)
+        .onAppear {
+                googleTasksManager.setup()
+        }
     }
 }
