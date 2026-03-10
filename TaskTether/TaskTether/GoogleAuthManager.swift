@@ -7,75 +7,208 @@
 
 import Foundation
 import Combine
-import OAuth2
+import AppKit
+import AuthenticationServices
 
-class GoogleAuthManager: ObservableObject {
-
+class GoogleAuthManager: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
+    
     @Published var isAuthenticated = false
     @Published var isAuthenticating = false
     @Published var errorMessage: String? = nil
-
-    private var oauth2: OAuth2CodeGrant?
-
-    init() {
-        setupOAuth()
+    
+    private var clientId: String = ""
+    private var clientSecret: String = ""
+    private var accessToken: String? = nil
+    private var refreshToken: String? = nil
+    
+    private let redirectURI = "com.googleusercontent.apps.785978993827-h5i0606hpenskuei822bs795a67l33cj:/oauth2callback"
+    private let scope = "https://www.googleapis.com/auth/tasks"
+    
+    override init() {
+        super.init()
+        loadCredentials()
+        loadTokensFromKeychain()
     }
-
-    private func setupOAuth() {
+    
+    // MARK: - Setup
+    
+    private func loadCredentials() {
         guard let credentialsURL = Bundle.main.url(forResource: "GoogleCredentials", withExtension: "json"),
-              let credentialsData = try? Data(contentsOf: credentialsURL),
-              let credentials = try? JSONSerialization.jsonObject(with: credentialsData) as? [String: Any],
-              let installed = credentials["installed"] as? [String: Any],
-              let clientId = installed["client_id"] as? String,
-              let clientSecret = installed["client_secret"] as? String else {
-            errorMessage = "Could not load Google credentials"
+              let data = try? Data(contentsOf: credentialsURL),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let installed = json["installed"] as? [String: Any],
+              let id = installed["client_id"] as? String,
+              let secret = installed["client_secret"] as? String else {
+            errorMessage = "Could not load credentials"
             return
         }
-
-        oauth2 = OAuth2CodeGrant(settings: [
+        clientId = id
+        clientSecret = secret
+    }
+    
+    // MARK: - Sign In
+    
+    func signIn() {
+        isAuthenticating = true
+        errorMessage = nil
+        
+        var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
+        components.queryItems = [
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "redirect_uri", value: redirectURI),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "scope", value: scope),
+            URLQueryItem(name: "access_type", value: "offline"),
+            URLQueryItem(name: "prompt", value: "consent")
+        ]
+        
+        guard let authURL = components.url else {
+            errorMessage = "Could not build auth URL"
+            isAuthenticating = false
+            return
+        }
+        
+        let session = ASWebAuthenticationSession(
+            url: authURL,
+            callbackURLScheme: "com.googleusercontent.apps.785978993827-h5i0606hpenskuei822bs795a67l33cj"
+        ) { callbackURL, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.isAuthenticating = false
+                    self.errorMessage = error.localizedDescription
+                }
+                return
+            }
+            
+            guard let callbackURL = callbackURL,
+                  let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "code" })?.value else {
+                DispatchQueue.main.async {
+                    self.isAuthenticating = false
+                    self.errorMessage = "No auth code received"
+                }
+                return
+            }
+            
+            self.exchangeCodeForTokens(code: code)
+        }
+        
+        session.presentationContextProvider = self
+        session.prefersEphemeralWebBrowserSession = false
+        session.start()
+    }
+    
+    // MARK: - Token Exchange
+    
+    private func exchangeCodeForTokens(code: String) {
+        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        
+        let body = [
+            "code": code,
             "client_id": clientId,
             "client_secret": clientSecret,
-            "authorize_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "scope": "https://www.googleapis.com/auth/tasks",
-            "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob"],
-            "keychain": true,
-            "keychain_account_for_client_credentials": "TaskTether"
-        ] as OAuth2JSON)
-
-        if oauth2?.hasUnexpiredAccessToken() == true {
+            "redirect_uri": redirectURI,
+            "grant_type": "authorization_code"
+        ].map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+        
+        request.httpBody = body.data(using: .utf8)
+        
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let accessToken = json["access_token"] as? String else {
+                DispatchQueue.main.async {
+                    self.isAuthenticating = false
+                    self.errorMessage = "Token exchange failed"
+                }
+                return
+            }
+            
+            self.accessToken = accessToken
+            self.refreshToken = json["refresh_token"] as? String
+            self.saveTokensToKeychain()
+            
+            DispatchQueue.main.async {
+                self.isAuthenticating = false
+                self.isAuthenticated = true
+            }
+        }.resume()
+    }
+    
+    // MARK: - Sign Out
+    
+    func signOut() {
+        accessToken = nil
+        refreshToken = nil
+        clearTokensFromKeychain()
+        isAuthenticated = false
+    }
+    
+    func getAccessToken() -> String? {
+        return accessToken
+    }
+    
+    // MARK: - Keychain
+    
+    private func saveTokensToKeychain() {
+        if let access = accessToken {
+            saveToKeychain(key: "tasktether_access_token", value: access)
+        }
+        if let refresh = refreshToken {
+            saveToKeychain(key: "tasktether_refresh_token", value: refresh)
+        }
+    }
+    
+    private func loadTokensFromKeychain() {
+        accessToken = loadFromKeychain(key: "tasktether_access_token")
+        refreshToken = loadFromKeychain(key: "tasktether_refresh_token")
+        if accessToken != nil {
             isAuthenticated = true
         }
     }
-
-    func signIn() {
-        guard let oauth2 = oauth2 else {
-            errorMessage = "OAuth not configured"
-            return
-        }
-
-        isAuthenticating = true
-        errorMessage = nil
-
-        oauth2.authorize { authParameters, error in
-            DispatchQueue.main.async {
-                self.isAuthenticating = false
-                if let error = error {
-                    self.errorMessage = error.localizedDescription
-                    self.isAuthenticated = false
-                } else {
-                    self.isAuthenticated = true
-                }
-            }
-        }
+    
+    private func clearTokensFromKeychain() {
+        deleteFromKeychain(key: "tasktether_access_token")
+        deleteFromKeychain(key: "tasktether_refresh_token")
     }
-
-    func signOut() {
-        oauth2?.forgetTokens()
-        isAuthenticated = false
+    
+    private func saveToKeychain(key: String, value: String) {
+        let data = value.data(using: .utf8)!
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data
+        ]
+        SecItemDelete(query as CFDictionary)
+        SecItemAdd(query as CFDictionary, nil)
     }
-
-    func getAccessToken() -> String? {
-        return oauth2?.accessToken
+    
+    private func loadFromKeychain(key: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        SecItemCopyMatching(query as CFDictionary, &result)
+        guard let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+    
+    private func deleteFromKeychain(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+    
+    // MARK: - ASWebAuthenticationPresentationContextProviding
+    
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return NSApplication.shared.windows.first ?? ASPresentationAnchor()
     }
 }

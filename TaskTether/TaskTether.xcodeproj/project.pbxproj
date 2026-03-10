@@ -6,17 +6,26 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		A77F82602F60499C00975447 /* OAuth2 in Frameworks */ = {isa = PBXBuildFile; productRef = A77F825F2F60499C00975447 /* OAuth2 */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		A77F82492F60147B00975447 /* TaskTether.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaskTether.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A77F82642F60561700975447 /* Exceptions for "TaskTether" folder in "TaskTether" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A77F82482F60147B00975447 /* TaskTether */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A77F824B2F60147B00975447 /* TaskTether */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A77F82642F60561700975447 /* Exceptions for "TaskTether" folder in "TaskTether" target */,
+			);
 			path = TaskTether;
 			sourceTree = "<group>";
 		};
@@ -27,7 +36,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A77F82602F60499C00975447 /* OAuth2 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +78,6 @@
 			);
 			name = TaskTether;
 			packageProductDependencies = (
-				A77F825F2F60499C00975447 /* OAuth2 */,
 			);
 			productName = TaskTether;
 			productReference = A77F82492F60147B00975447 /* TaskTether.app */;
@@ -101,7 +108,6 @@
 			mainGroup = A77F82402F60147B00975447;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A77F825E2F60499C00975447 /* XCRemoteSwiftPackageReference "OAuth2" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A77F824A2F60147B00975447 /* Products */;
@@ -261,9 +267,20 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TaskTether/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -291,9 +308,20 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TaskTether/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -334,25 +362,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		A77F825E2F60499C00975447 /* XCRemoteSwiftPackageReference "OAuth2" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/p2/OAuth2";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.3.5;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A77F825F2F60499C00975447 /* OAuth2 */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A77F825E2F60499C00975447 /* XCRemoteSwiftPackageReference "OAuth2" */;
-			productName = OAuth2;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A77F82412F60147B00975447 /* Project object */;
 }
