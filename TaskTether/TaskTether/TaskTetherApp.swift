@@ -10,7 +10,7 @@ import SwiftUI
 @main
 struct TaskTetherApp: App {
     var body: some Scene {
-        WindowGroup {
+        MenuBarExtra("TaskTether", systemImage: "arrow.triangle.2.circlepath") {
             ContentView()
         }
     }
