@@ -56,14 +56,20 @@ struct StatusDot: View {
 
 struct ContentView: View {
     @StateObject private var authManager = GoogleAuthManager()
+    @StateObject private var remindersManager = RemindersManager()
     
     var body: some View {
-        if authManager.isAuthenticated {
-            MainView(authManager: authManager)
-        } else {
-            ConnectView(authManager: authManager)
+            Group {
+                if authManager.isAuthenticated {
+                    MainView(authManager: authManager, remindersManager: remindersManager)
+                } else {
+                    ConnectView(authManager: authManager)
+                }
+            }
+            .onAppear {
+                remindersManager.requestAccess()
+            }
         }
-    }
 }
 
 // MARK: - Connect View
@@ -131,6 +137,7 @@ struct ConnectView: View {
 
 struct MainView: View {
     @ObservedObject var authManager: GoogleAuthManager
+    @ObservedObject var remindersManager: RemindersManager
     
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
