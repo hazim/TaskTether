@@ -13,5 +13,6 @@ struct TaskTetherApp: App {
         MenuBarExtra("TaskTether", systemImage: "arrow.triangle.2.circlepath") {
             ContentView()
         }
+        .menuBarExtraStyle(.window)
     }
 }
