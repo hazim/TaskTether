@@ -4,3 +4,4 @@ xcuserdata/
 DerivedData/
 .DS_Store
 TaskTether/TaskTether.xcodeproj/project.xcworkspace/xcuserdata/
+TaskTether/TaskTether/GoogleCredentials.json

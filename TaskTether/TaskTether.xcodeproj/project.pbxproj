@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A77F82602F60499C00975447 /* OAuth2 in Frameworks */ = {isa = PBXBuildFile; productRef = A77F825F2F60499C00975447 /* OAuth2 */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A77F82492F60147B00975447 /* TaskTether.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TaskTether.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A77F82602F60499C00975447 /* OAuth2 in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = TaskTether;
 			packageProductDependencies = (
+				A77F825F2F60499C00975447 /* OAuth2 */,
 			);
 			productName = TaskTether;
 			productReference = A77F82492F60147B00975447 /* TaskTether.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = A77F82402F60147B00975447;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A77F825E2F60499C00975447 /* XCRemoteSwiftPackageReference "OAuth2" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A77F824A2F60147B00975447 /* Products */;
 			projectDirPath = "";
@@ -325,6 +334,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A77F825E2F60499C00975447 /* XCRemoteSwiftPackageReference "OAuth2" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/p2/OAuth2";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.3.5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A77F825F2F60499C00975447 /* OAuth2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A77F825E2F60499C00975447 /* XCRemoteSwiftPackageReference "OAuth2" */;
+			productName = OAuth2;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A77F82412F60147B00975447 /* Project object */;
 }
