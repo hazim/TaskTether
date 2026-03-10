@@ -1,0 +1,5 @@
+GoogleCredentials.json
+*.xcuserstate
+xcuserdata/
+DerivedData/
+.DS_Store
