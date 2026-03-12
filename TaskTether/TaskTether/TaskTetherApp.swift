@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct TaskTetherApp: App {
+    @StateObject private var themeManager = ThemeManager()
+
     var body: some Scene {
         MenuBarExtra("TaskTether", systemImage: "arrow.triangle.2.circlepath") {
             ContentView()
+                .environmentObject(themeManager)
         }
         .menuBarExtraStyle(.window)
     }

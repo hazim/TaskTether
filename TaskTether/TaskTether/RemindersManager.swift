@@ -24,14 +24,29 @@ class RemindersManager: ObservableObject {
     func requestAccess() {
         guard !hasRequestedAccess else { return }
         hasRequestedAccess = true
-        store.requestFullAccessToReminders { granted, error in
-            DispatchQueue.main.async {
-                if granted {
-                    self.isAuthorised = true
-                    self.createTaskTetherListIfNeeded()
-                } else {
-                    self.isAuthorised = false
-                    self.errorMessage = "Reminders access denied. Please enable in System Settings → Privacy → Reminders."
+
+        if #available(macOS 14, *) {
+            store.requestFullAccessToReminders { granted, error in
+                DispatchQueue.main.async {
+                    if granted {
+                        self.isAuthorised = true
+                        self.createTaskTetherListIfNeeded()
+                    } else {
+                        self.isAuthorised = false
+                        self.errorMessage = "Reminders access denied. Please enable in System Settings → Privacy → Reminders."
+                    }
+                }
+            }
+        } else {
+            store.requestAccess(to: .reminder) { granted, error in
+                DispatchQueue.main.async {
+                    if granted {
+                        self.isAuthorised = true
+                        self.createTaskTetherListIfNeeded()
+                    } else {
+                        self.isAuthorised = false
+                        self.errorMessage = "Reminders access denied. Please enable in System Preferences → Security & Privacy → Reminders."
+                    }
                 }
             }
         }

@@ -1,0 +1,303 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "app.name" : {
+      "comment" : "The application name, shown in the menu bar popover header.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TaskTether"
+          }
+        }
+      }
+    },
+    "connect.button.idle" : {
+      "comment" : "Label on the Google sign-in button when idle.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect Google Account"
+          }
+        }
+      }
+    },
+    "connect.button.loading" : {
+      "comment" : "Label on the Google sign-in button while authentication is in progress.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting..."
+          }
+        }
+      }
+    },
+    "connect.description" : {
+      "comment" : "Short description shown on the connect screen below the app name.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync Apple Reminders with Google Tasks seamlessly."
+          }
+        }
+      }
+    },
+    "error.auth.token" : {
+      "comment" : "Error shown when the OAuth token exchange with Google fails.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Token exchange failed"
+          }
+        }
+      }
+    },
+    "error.auth.url" : {
+      "comment" : "Error shown when the Google OAuth URL cannot be constructed.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not build auth URL"
+          }
+        }
+      }
+    },
+    "error.credentials" : {
+      "comment" : "Error shown when GoogleCredentials.json cannot be loaded from the bundle.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load credentials"
+          }
+        }
+      }
+    },
+    "error.reminders.createlist" : {
+      "comment" : "Error shown when the TaskTether list cannot be created in Reminders. %@ is replaced with the system error description.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not create TaskTether list: %@"
+          }
+        }
+      }
+    },
+    "error.reminders.denied.v12" : {
+      "comment" : "Error shown on macOS 12–13 (Monterey/Ventura) when Reminders access is denied. 'System Preferences' is the correct name on those versions.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders access denied. Please enable in System Preferences → Security & Privacy → Reminders."
+          }
+        }
+      }
+    },
+    "error.reminders.denied.v14" : {
+      "comment" : "Error shown on macOS 14+ (Sonoma and later) when Reminders access is denied. 'System Settings' is the correct name from macOS 13 onwards.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders access denied. Please enable in System Settings → Privacy → Reminders."
+          }
+        }
+      }
+    },
+    "error.tasks.createlist" : {
+      "comment" : "Error shown when the TaskTether list cannot be created in Google Tasks.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not create TaskTether list"
+          }
+        }
+      }
+    },
+    "error.tasks.fetchlists" : {
+      "comment" : "Error shown when the Google Tasks list fetch request fails or returns unexpected data.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not fetch task lists"
+          }
+        }
+      }
+    },
+    "error.tasks.notoken" : {
+      "comment" : "Error shown internally when Google Tasks setup is attempted but no access token is available.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No access token"
+          }
+        }
+      }
+    },
+    "general.quit" : {
+      "comment" : "Label on the Quit button shown in the connect screen.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        }
+      }
+    },
+    "service.googletasks" : {
+      "comment" : "Label next to the Google Tasks status dot in the main view.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Tasks"
+          }
+        }
+      }
+    },
+    "service.reminders" : {
+      "comment" : "Label next to the Reminders status dot in the main view.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders"
+          }
+        }
+      }
+    },
+    "status.connected" : {
+      "comment" : "Accessibility label and tooltip for a connected status dot.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      }
+    },
+    "status.error" : {
+      "comment" : "Accessibility label and tooltip for an error status dot.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Error"
+          }
+        }
+      }
+    },
+    "status.syncing" : {
+      "comment" : "Accessibility label and tooltip for a syncing status dot.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing"
+          }
+        }
+      }
+    },
+    "sync.button" : {
+      "comment" : "Label on the Sync Now button in the main view.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync Now"
+          }
+        }
+      }
+    },
+    "sync.last.never" : {
+      "comment" : "Shown below the sync button when no sync has been performed yet.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last synced: Never"
+          }
+        }
+      }
+    },
+    "tooltip.googletasks.connected" : {
+      "comment" : "Tooltip on the Google Tasks status dot when connected.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Tasks: Connected"
+          }
+        }
+      }
+    },
+    "tooltip.googletasks.disconnected" : {
+      "comment" : "Tooltip on the Google Tasks status dot when not connected.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Tasks: Not connected"
+          }
+        }
+      }
+    },
+    "tooltip.quit" : {
+      "comment" : "Tooltip on the quit icon button in the main view footer.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit TaskTether"
+          }
+        }
+      }
+    },
+    "tooltip.reminders.connected" : {
+      "comment" : "Tooltip on the Reminders status dot when connected.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders: Connected"
+          }
+        }
+      }
+    },
+    "tooltip.reminders.disconnected" : {
+      "comment" : "Tooltip on the Reminders status dot when not connected.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders: Not connected"
+          }
+        }
+      }
+    },
+    "tooltip.settings" : {
+      "comment" : "Tooltip on the gear icon button in the main view footer.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

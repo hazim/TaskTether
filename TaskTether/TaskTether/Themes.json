@@ -1,0 +1,88 @@
+{
+  "themes": [
+    {
+      "id": "sand",
+      "name": "Sand",
+      "appearance": "light",
+      "colors": {
+        "backgroundPrimary":   "#F5EFE6",
+        "backgroundSecondary": "#E8DDD0",
+        "surface":             "#EDE4D8",
+        "surface2":            "#E0D4C4",
+        "border":              "#D0C4B0",
+        "accent":              "#B07D4A",
+        "accentForeground":    "#FFFFFF",
+        "textPrimary":         "#2C2017",
+        "textSecondary":       "#7A6A58",
+        "textTertiary":        "#A89880",
+        "success":             "#1DB954",
+        "warning":             "#FF8C00",
+        "danger":              "#FF3B30",
+        "sparkline":           "#B07D4A"
+      }
+    },
+    {
+      "id": "midnight",
+      "name": "Midnight",
+      "appearance": "dark",
+      "colors": {
+        "backgroundPrimary":   "#1A1A2E",
+        "backgroundSecondary": "#12122A",
+        "surface":             "#222240",
+        "surface2":            "#2A2A50",
+        "border":              "#2E2E50",
+        "accent":              "#4A90D9",
+        "accentForeground":    "#FFFFFF",
+        "textPrimary":         "#E8E8F0",
+        "textSecondary":       "#9090A8",
+        "textTertiary":        "#5A5A78",
+        "success":             "#1DB954",
+        "warning":             "#FF8C00",
+        "danger":              "#FF3B30",
+        "sparkline":           "#4A90D9"
+      }
+    },
+    {
+      "id": "dusk",
+      "name": "Dusk",
+      "appearance": "dark",
+      "colors": {
+        "backgroundPrimary":   "#221530",
+        "backgroundSecondary": "#1A0F28",
+        "surface":             "#2C1E3C",
+        "surface2":            "#34264A",
+        "border":              "#3A2A50",
+        "accent":              "#C97ADB",
+        "accentForeground":    "#FFFFFF",
+        "textPrimary":         "#EDE8F5",
+        "textSecondary":       "#9A88B8",
+        "textTertiary":        "#6A5888",
+        "success":             "#3DD68C",
+        "warning":             "#FFB340",
+        "danger":              "#FF6B6B",
+        "sparkline":           "#C97ADB"
+      }
+    },
+    {
+      "id": "prolis",
+      "name": "Prolis",
+      "appearance": "dark",
+      "colors": {
+        "backgroundPrimary":   "#121212",
+        "backgroundSecondary": "#0A0A0A",
+        "surface":             "#1E1E1E",
+        "surface2":            "#282828",
+        "border":              "#2E2E2E",
+        "accent":              "#C8F000",
+        "accentForeground":    "#0A0A0A",
+        "textPrimary":         "#F0F0F0",
+        "textSecondary":       "#888888",
+        "textTertiary":        "#555555",
+        "success":             "#C8F000",
+        "warning":             "#FFB340",
+        "danger":              "#FF4444",
+        "sparkline":           "#C8F000"
+      }
+    }
+  ]
+}
