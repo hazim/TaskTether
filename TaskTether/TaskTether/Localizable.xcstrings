@@ -1,6 +1,25 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "·" : {
+
+    },
+    "%" : {
+
+    },
+    "%lld" : {
+
+    },
+    "%lld / %lld %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld %3$@"
+          }
+        }
+      }
+    },
     "app.name" : {
       "comment" : "The application name, shown in the menu bar popover header.",
       "localizations" : {
@@ -14,6 +33,7 @@
     },
     "connect.button.idle" : {
       "comment" : "Label on the Google sign-in button when idle.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -25,6 +45,7 @@
     },
     "connect.button.loading" : {
       "comment" : "Label on the Google sign-in button while authentication is in progress.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -47,6 +68,7 @@
     },
     "error.auth.token" : {
       "comment" : "Error shown when the OAuth token exchange with Google fails.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -58,6 +80,7 @@
     },
     "error.auth.url" : {
       "comment" : "Error shown when the Google OAuth URL cannot be constructed.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -69,6 +92,7 @@
     },
     "error.credentials" : {
       "comment" : "Error shown when GoogleCredentials.json cannot be loaded from the bundle.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -80,6 +104,7 @@
     },
     "error.reminders.createlist" : {
       "comment" : "Error shown when the TaskTether list cannot be created in Reminders. %@ is replaced with the system error description.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -91,6 +116,7 @@
     },
     "error.reminders.denied.v12" : {
       "comment" : "Error shown on macOS 12–13 (Monterey/Ventura) when Reminders access is denied. 'System Preferences' is the correct name on those versions.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -102,6 +128,7 @@
     },
     "error.reminders.denied.v14" : {
       "comment" : "Error shown on macOS 14+ (Sonoma and later) when Reminders access is denied. 'System Settings' is the correct name from macOS 13 onwards.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -113,6 +140,7 @@
     },
     "error.tasks.createlist" : {
       "comment" : "Error shown when the TaskTether list cannot be created in Google Tasks.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -124,6 +152,7 @@
     },
     "error.tasks.fetchlists" : {
       "comment" : "Error shown when the Google Tasks list fetch request fails or returns unexpected data.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -135,11 +164,56 @@
     },
     "error.tasks.notoken" : {
       "comment" : "Error shown internally when Google Tasks setup is attempted but no access token is available.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No access token"
+          }
+        }
+      }
+    },
+    "expanded.label.last7days" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 7 Days"
+          }
+        }
+      }
+    },
+    "expanded.label.today" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        }
+      }
+    },
+    "expanded.label.yesterday" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yesterday"
+          }
+        }
+      }
+    },
+    "expanded.tasks.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tasks done"
           }
         }
       }
@@ -151,6 +225,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quit"
+          }
+        }
+      }
+    },
+    "nav.compact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compact"
+          }
+        }
+      }
+    },
+    "nav.expanded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expanded"
+          }
+        }
+      }
+    },
+    "nav.today" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
           }
         }
       }
@@ -179,6 +286,7 @@
     },
     "status.connected" : {
       "comment" : "Accessibility label and tooltip for a connected status dot.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -190,6 +298,7 @@
     },
     "status.error" : {
       "comment" : "Accessibility label and tooltip for an error status dot.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -201,6 +310,7 @@
     },
     "status.syncing" : {
       "comment" : "Accessibility label and tooltip for a syncing status dot.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -232,8 +342,67 @@
         }
       }
     },
+    "sync.strip.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last sync"
+          }
+        }
+      }
+    },
+    "task.tomorrow.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomorrow"
+          }
+        }
+      }
+    },
+    "TaskTether" : {
+
+    },
+    "today.add.tooltip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add task"
+          }
+        }
+      }
+    },
+    "today.empty.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing due in your TaskTether list today. "
+          }
+        }
+      }
+    },
+    "today.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re all caught up. "
+          }
+        }
+      }
+    },
     "tooltip.googletasks.connected" : {
       "comment" : "Tooltip on the Google Tasks status dot when connected.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -245,6 +414,7 @@
     },
     "tooltip.googletasks.disconnected" : {
       "comment" : "Tooltip on the Google Tasks status dot when not connected.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -267,6 +437,7 @@
     },
     "tooltip.reminders.connected" : {
       "comment" : "Tooltip on the Reminders status dot when connected.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -278,6 +449,7 @@
     },
     "tooltip.reminders.disconnected" : {
       "comment" : "Tooltip on the Reminders status dot when not connected.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
