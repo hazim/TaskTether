@@ -206,7 +206,7 @@ struct TaskRow: View {
                 }
             }
         }
-        .onChange(of: isEditing) { editing in
+        .onChange(of: isEditing) { _, editing in
             if !editing { commitEdit() }
         }
     }

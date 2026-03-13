@@ -101,8 +101,44 @@ class RemindersManager: ObservableObject {
         return results
     }
     
+    // MARK: - Fetch by ID
+    // Fetches a single EKReminder by calendarItemIdentifier.
+    // Used by SyncEngine to retrieve the live object before updating or deleting.
+
+    func fetchTask(by id: String) -> EKReminder? {
+        return fetchTasks().first { $0.calendarItemIdentifier == id }
+    }
+
     // MARK: - Write Tasks
-    
+
+    func updateTask(
+        _ reminder: EKReminder,
+        title:       String,
+        notes:       String?,
+        isCompleted: Bool,
+        dueDate:     Date?
+    ) {
+        reminder.title       = title
+        reminder.notes       = notes
+        reminder.isCompleted = isCompleted
+
+        if let dueDate {
+            reminder.dueDateComponents = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute],
+                from: dueDate
+            )
+        } else {
+            reminder.dueDateComponents = nil
+        }
+
+        do {
+            try store.save(reminder, commit: true)
+            print("Updated task in Reminders: \(title)")
+        } catch {
+            print("Failed to update task: \(error)")
+        }
+    }
+
     func createTask(title: String, dueDate: Date? = nil, notes: String? = nil) {
         guard isAuthorised else { return }
         

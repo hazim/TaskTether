@@ -277,13 +277,19 @@ class SyncEngine: ObservableObject {
             )
         }
         for task in diff.updateInReminders {
-            // EKReminder updates require the live EKReminder object.
-            // In Group 4 we'll fetch by remindersId. For now, log intent.
-            print("SyncEngine: Would update Reminders task '\(task.title)'")
+            guard let remindersId = task.remindersId,
+                  let reminder = remindersManager.fetchTask(by: remindersId) else { continue }
+            remindersManager.updateTask(
+                reminder,
+                title:       task.title,
+                notes:       task.notes,
+                isCompleted: task.isCompleted,
+                dueDate:     task.dueDate
+            )
         }
         for remindersId in diff.deleteFromReminders {
-            // Requires live EKReminder fetch by ID — wired fully in Group 4.
-            print("SyncEngine: Would delete Reminders task \(remindersId)")
+            guard let reminder = remindersManager.fetchTask(by: remindersId) else { continue }
+            remindersManager.deleteTask(reminder)
         }
 
         // Google Tasks writes
@@ -306,6 +312,144 @@ class SyncEngine: ObservableObject {
         }
         for googleId in diff.deleteFromGoogle {
             googleTasksManager.deleteTask(taskId: googleId)
+        }
+    }
+
+    // MARK: - Instant UI Updates
+    // These methods mutate the local tasks array immediately so the UI responds
+    // without waiting for the next sync cycle, then write to both platforms
+    // in the background on a non-blocking task.
+
+    @MainActor
+    func toggleTask(id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[idx].isCompleted.toggle()
+        tasks[idx].lastModified = Date()
+        let task = tasks[idx]
+        // Re-sort: completed tasks sink to bottom
+        tasks.remove(at: idx)
+        if task.isCompleted {
+            tasks.append(task)
+        } else {
+            let insertAt = tasks.firstIndex(where: { $0.isCompleted }) ?? tasks.count
+            tasks.insert(task, at: insertAt)
+        }
+        writeTask(task)
+    }
+
+    @MainActor
+    func deleteTask(id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        let task = tasks.remove(at: idx)
+        Task.detached { [weak self] in
+            guard let self else { return }
+            if let remindersId = task.remindersId,
+               let reminder = remindersManager.fetchTask(by: remindersId) {
+                remindersManager.deleteTask(reminder)
+            }
+            if let googleId = task.googleTasksId {
+                googleTasksManager.deleteTask(taskId: googleId)
+            }
+        }
+    }
+
+    @MainActor
+    func renameTask(id: String, newTitle: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[idx].title        = newTitle
+        tasks[idx].lastModified = Date()
+        writeTask(tasks[idx])
+    }
+
+    @MainActor
+    func addTask(title: String) {
+        var task = TetherTask(
+            id:            UUID().uuidString,
+            remindersId:   nil,
+            googleTasksId: nil,
+            title:         title,
+            notes:         nil,
+            isCompleted:   false,
+            dueDate:       Calendar.current.startOfDay(for: Date()),
+            url:           nil,
+            lastModified:  Date(),
+            source:        .both
+        )
+        let insertAt = tasks.firstIndex(where: { $0.isCompleted }) ?? tasks.count
+        tasks.insert(task, at: insertAt)
+        Task.detached { [weak self] in
+            guard let self else { return }
+            remindersManager.createTask(title: task.title, dueDate: task.dueDate, notes: task.notes)
+            googleTasksManager.createTask(title: task.title, notes: task.notes, dueDate: task.dueDate)
+        }
+    }
+
+    @MainActor
+    func moveToTomorrow(id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1,
+                           to: Calendar.current.startOfDay(for: Date()))
+        tasks[idx].dueDate      = tomorrow
+        tasks[idx].lastModified = Date()
+        let task = tasks.remove(at: idx)
+        // Remove from today's view — task is still in the engine but not due today
+        writeTask(task)
+    }
+
+    @MainActor
+    func toggleSubtask(taskId: String, subtaskId: String) {
+        // Subtask model lives in TetherTaskItem (display layer) for now.
+        // Full subtask sync wired when TetherTask gains subtask support.
+        // No-op at engine level — handled locally in ContentView.
+    }
+
+    // Writes a single task to both platforms in the background.
+    private func writeTask(_ task: TetherTask) {
+        Task.detached { [weak self] in
+            guard let self else { return }
+            if let remindersId = task.remindersId,
+               let reminder = remindersManager.fetchTask(by: remindersId) {
+                remindersManager.updateTask(
+                    reminder,
+                    title:       task.title,
+                    notes:       task.notes,
+                    isCompleted: task.isCompleted,
+                    dueDate:     task.dueDate
+                )
+            } else {
+                remindersManager.createTask(
+                    title:   task.title,
+                    dueDate: task.dueDate,
+                    notes:   task.notes
+                )
+            }
+            if let googleId = task.googleTasksId {
+                googleTasksManager.updateTask(
+                    taskId:      googleId,
+                    title:       task.title,
+                    notes:       task.notes,
+                    isCompleted: task.isCompleted,
+                    dueDate:     task.dueDate
+                )
+            } else {
+                googleTasksManager.createTask(
+                    title:   task.title,
+                    notes:   task.notes,
+                    dueDate: task.dueDate
+                )
+            }
+        }
+    }
+
+    // MARK: - Today Filter
+    // Returns only tasks due today or overdue (no due date = show always).
+
+    var todayTasks: [TetherTask] {
+        let today = Calendar.current.startOfDay(for: Date())
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+        return tasks.filter { task in
+            guard let due = task.dueDate else { return true }
+            return due < tomorrow
         }
     }
 

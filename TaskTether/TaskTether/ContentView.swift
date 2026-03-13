@@ -98,7 +98,7 @@ struct MainContainerView: View {
             TodayView(
                 tasks:           tasks,
                 onToggle:        { id in toggleTask(id) },
-                onTomorrow:      { id in removeTask(id) },
+                onTomorrow:      { id in moveToTomorrow(id) },
                 onDelete:        { id in removeTask(id) },
                 onEdit:          { _ in },
                 onCommit:        { id, newTitle in renameTask(id, newTitle) },
@@ -241,114 +241,44 @@ struct MainContainerView: View {
         googleTasksManager.isConnected ? .connected : .error
     }
 
-    // MARK: - Placeholder task state
-    // Replaced in Group 4 with real TetherTask objects from SyncEngine.
-    // @State so callbacks can mutate the list and the UI updates live.
-    @State private var tasks: [TetherTaskItem] = [
-        TetherTaskItem(id: "1",  title: "Review pull request #42",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "2",  title: "Write unit tests for auth module",
-                       isCompleted: false, url: URL(string: "https://example.com"),
-                       subtasks: [
-                           TetherSubtaskItem(id: "2a", title: "Write login tests",         isCompleted: false, url: nil),
-                           TetherSubtaskItem(id: "2b", title: "Write token refresh tests", isCompleted: false, url: nil),
-                           TetherSubtaskItem(id: "2c", title: "Write logout tests",        isCompleted: false, url: nil)
-                       ]),
-        TetherTaskItem(id: "3",  title: "Call with client re: scope",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "4",  title: "Update API documentation",
-                       isCompleted: false, url: URL(string: "https://example.com"), subtasks: []),
-        TetherTaskItem(id: "5",  title: "Fix layout bug on dashboard",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "6",  title: "Deploy staging environment",
-                       isCompleted: false, url: nil,
-                       subtasks: [
-                           TetherSubtaskItem(id: "6a", title: "Run pre-deploy checks", isCompleted: false, url: nil),
-                           TetherSubtaskItem(id: "6b", title: "Notify team",           isCompleted: false, url: nil)
-                       ]),
-        TetherTaskItem(id: "7",  title: "Review analytics report",
-                       isCompleted: false, url: URL(string: "https://example.com"), subtasks: []),
-        TetherTaskItem(id: "8",  title: "Sync with design team",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "9",  title: "Write release notes for v1.2",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "10", title: "Archive old project files",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "11", title: "Check server logs",
-                       isCompleted: false, url: nil, subtasks: []),
-        TetherTaskItem(id: "12", title: "Plan Q2 sprint goals",
-                       isCompleted: false, url: URL(string: "https://example.com"), subtasks: [])
-    ]
+    // MARK: - Live Task State
+    // Driven by SyncEngine. todayTasks filters to due-today + overdue + no-due-date.
 
-    // MARK: - Task Callbacks
+    private var tasks: [TetherTaskItem] {
+        syncEngine.todayTasks.map { $0.toDisplayItem() }
+    }
 
-    /// Toggle completion. Completed tasks sink to bottom; un-completing floats back up.
+    // MARK: - Task Callbacks → SyncEngine
+
     private func toggleTask(_ id: String) {
-        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
-        tasks[idx].isCompleted.toggle()
-        let completed = tasks[idx].isCompleted
-        let task = tasks.remove(at: idx)
-        if completed {
-            tasks.append(task)
-        } else {
-            let insertAt = tasks.firstIndex(where: { $0.isCompleted }) ?? tasks.count
-            tasks.insert(task, at: insertAt)
-        }
+        syncEngine.toggleTask(id: id)
     }
 
-    /// Toggle a subtask. Completed subtasks sink to bottom of their parent's list.
     private func toggleSubtask(_ taskId: String, _ subtaskId: String) {
-        guard let tIdx = tasks.firstIndex(where: { $0.id == taskId }),
-              let sIdx = tasks[tIdx].subtasks.firstIndex(where: { $0.id == subtaskId })
-        else { return }
-        tasks[tIdx].subtasks[sIdx].isCompleted.toggle()
-        let completed = tasks[tIdx].subtasks[sIdx].isCompleted
-        let subtask = tasks[tIdx].subtasks.remove(at: sIdx)
-        if completed {
-            tasks[tIdx].subtasks.append(subtask)
-        } else {
-            let insertAt = tasks[tIdx].subtasks.firstIndex(where: { $0.isCompleted }) ?? tasks[tIdx].subtasks.count
-            tasks[tIdx].subtasks.insert(subtask, at: insertAt)
-        }
+        syncEngine.toggleSubtask(taskId: taskId, subtaskId: subtaskId)
     }
 
-    /// Remove a task — used by both onDelete and onTomorrow.
     private func removeTask(_ id: String) {
-        tasks.removeAll { $0.id == id }
+        syncEngine.deleteTask(id: id)
     }
 
-    /// Move a task. Only moves within the same completion group so sort order is preserved.
+    private func moveToTomorrow(_ id: String) {
+        syncEngine.moveToTomorrow(id: id)
+    }
+
     private func addTask(_ title: String) {
-        let newTask = TetherTaskItem(
-            id:          UUID().uuidString,
-            title:       title,
-            isCompleted: false,
-            url:         nil,
-            subtasks:    []
-        )
-        // Prepend to the incomplete tasks at the top of the list
-        if let firstCompleted = tasks.firstIndex(where: { $0.isCompleted }) {
-            tasks.insert(newTask, at: firstCompleted)
-        } else {
-            tasks.insert(newTask, at: 0)
-        }
+        syncEngine.addTask(title: title)
     }
 
     private func renameTask(_ id: String, _ newTitle: String) {
-        guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
-        tasks[index].title = newTitle
+        syncEngine.renameTask(id: id, newTitle: newTitle)
     }
 
     private func moveTask(fromId: String, toId: String) {
-        guard fromId != toId,
-              let fromIdx = tasks.firstIndex(where: { $0.id == fromId }),
-              let toIdx   = tasks.firstIndex(where: { $0.id == toId }),
-              tasks[fromIdx].isCompleted == tasks[toIdx].isCompleted
-        else { return }
-        let task = tasks.remove(at: fromIdx)
-        let adjusted = fromIdx < toIdx ? toIdx - 1 : toIdx
-        tasks.insert(task, at: adjusted)
+        // Drag-to-reorder deferred — parked for Group 5
     }
+
+
 }
 
 // MARK: - Zone 1: AppTitleBar
