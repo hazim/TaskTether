@@ -3,6 +3,7 @@
 //  TaskTether
 //
 //  Created by Hazim Sami on 12/03/2026.
+//  Updated: 13/03/2026 · 19:30
 //
 
 import SwiftUI
@@ -43,15 +44,19 @@ struct TaskRow: View {
     @EnvironmentObject private var themeManager: ThemeManager
 
     let task:            TetherTaskItem
+    let isEditing:       Bool
     let onToggle:        () -> Void
     let onTomorrow:      () -> Void
     let onDelete:        () -> Void
+    let onEdit:          () -> Void
+    let onCommit:        (String) -> Void
     let onLinkTapped:    (() -> Void)?
     let onSubtaskToggle: (String) -> Void
 
     @State private var isHovered   = false
     @State private var dragOffset  = CGFloat.zero
     @State private var isDragging  = false
+    @State private var editBuffer  = ""
 
     // How far right the user needs to drag to trigger "move to tomorrow"
     private let swipeThreshold: CGFloat = 60
@@ -84,23 +89,35 @@ struct TaskRow: View {
                         onToggle()
                     }
 
-                    Text(task.title)
-                        .font(.system(size: DesignTokens.fontSm))
-                        .foregroundStyle(
-                            task.isCompleted
-                                ? themeManager.textTertiary
-                                : themeManager.textPrimary
-                        )
-                        .strikethrough(task.isCompleted, color: themeManager.textTertiary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if isEditing {
+                        // MARK: Inline Edit TextField
+                        TextField("", text: $editBuffer)
+                            .font(.system(size: DesignTokens.fontSm))
+                            .foregroundStyle(themeManager.textPrimary)
+                            .textFieldStyle(.plain)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .onSubmit { commitEdit() }
+                            .onExitCommand { cancelEdit() }
+                            .onAppear { editBuffer = task.title }
+                    } else {
+                        Text(task.title)
+                            .font(.system(size: DesignTokens.fontSm))
+                            .foregroundStyle(
+                                task.isCompleted
+                                    ? themeManager.textTertiary
+                                    : themeManager.textPrimary
+                            )
+                            .strikethrough(task.isCompleted, color: themeManager.textTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Persistent link icon — non-interactive visual indicator only
-                    if task.url != nil {
-                        Image(systemName: "arrow.up.forward.square")
-                            .font(.system(size: 9))
-                            .foregroundStyle(themeManager.accent.opacity(0.5))
+                        // Persistent link icon — non-interactive visual indicator only
+                        if task.url != nil {
+                            Image(systemName: "arrow.up.forward.square")
+                                .font(.system(size: 9))
+                                .foregroundStyle(themeManager.accent.opacity(0.5))
+                        }
                     }
                 }
                 .padding(.vertical, DesignTokens.paddingXs + 3)
@@ -108,28 +125,28 @@ struct TaskRow: View {
                 .padding(.trailing, DesignTokens.paddingSm)
                 .background(isHovered ? themeManager.surface : Color.clear)
                 .offset(x: dragOffset)
-                .gesture(
-                    DragGesture(minimumDistance: 10)
+                // highPriorityGesture wins over the ScrollView's scroll recogniser.
+                // Without this, horizontal swipes are stolen by the vertical ScrollView on macOS.
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 12)
                         .onChanged { value in
-                            guard value.translation.width > 0 else { return }
+                            // Only respond to predominantly horizontal drags
+                            let h = abs(value.translation.width)
+                            let v = abs(value.translation.height)
+                            guard value.translation.width > 0, h > v else { return }
                             isDragging = true
-                            // Apply resistance so it doesn't fly off screen
                             dragOffset = min(value.translation.width * 0.6, swipeThreshold * 1.4)
                         }
                         .onEnded { _ in
                             isDragging = false
                             if dragOffset >= swipeThreshold {
-                                // Threshold met — animate out, then fire callback
                                 withAnimation(.easeIn(duration: DesignTokens.animFast)) {
                                     dragOffset = 300
                                 }
                                 DispatchQueue.main.asyncAfter(
                                     deadline: .now() + DesignTokens.animFast
-                                ) {
-                                    onTomorrow()
-                                }
+                                ) { onTomorrow() }
                             } else {
-                                // Threshold not met — snap back with a spring
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     dragOffset = 0
                                 }
@@ -138,8 +155,8 @@ struct TaskRow: View {
                 )
 
                 // MARK: Hover Action Overlay
-                // Hidden while dragging so it doesn't conflict with the swipe hint
-                if isHovered && !isDragging {
+                // Hidden while dragging or editing
+                if isHovered && !isDragging && !isEditing {
                     HStack(spacing: 2) {
                         LinearGradient(
                             gradient: Gradient(colors: [Color.clear, themeManager.surface]),
@@ -156,7 +173,8 @@ struct TaskRow: View {
                                     action: onLink
                                 )
                             }
-                            RowActionButton(icon: "arrow.right",  role: .normal,      action: onTomorrow)
+                            RowActionButton(icon: "square.and.pencil", role: .normal,  action: onEdit)
+                            RowActionButton(icon: "arrow.right",   role: .normal,      action: onTomorrow)
                             RowActionButton(icon: "trash",         role: .destructive, action: onDelete)
                         }
                         .padding(.trailing, DesignTokens.paddingXs + 2)
@@ -165,6 +183,9 @@ struct TaskRow: View {
                     .transition(.opacity.animation(.easeInOut(duration: DesignTokens.animFast)))
                 }
             }
+            // .contentShape ensures the full row width triggers hover, not just text.
+            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity)
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: DesignTokens.animFast)) {
                     isHovered = hovering
@@ -174,6 +195,7 @@ struct TaskRow: View {
 
             // MARK: Subtask Rows
             // Always visible if subtasks exist — indented beneath the parent.
+            // When editing ends (isEditing goes false) commit if title changed.
             if !task.subtasks.isEmpty {
                 ForEach(task.subtasks) { subtask in
                     SubtaskRow(
@@ -184,6 +206,23 @@ struct TaskRow: View {
                 }
             }
         }
+        .onChange(of: isEditing) { editing in
+            if !editing { commitEdit() }
+        }
+    }
+
+    // MARK: - Edit Helpers
+
+    private func commitEdit() {
+        let trimmed = editBuffer.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { cancelEdit(); return }
+        onCommit(trimmed)
+    }
+
+    private func cancelEdit() {
+        // Notify with the original title so the parent clears editingTaskId
+        // without changing the stored value.
+        onCommit(task.title)
     }
 }
 
@@ -258,6 +297,8 @@ private struct SubtaskRow: View {
                 .transition(.opacity.animation(.easeInOut(duration: DesignTokens.animFast)))
             }
         }
+        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: DesignTokens.animFast)) {
                 isHovered = hovering
@@ -367,11 +408,9 @@ private struct RowActionButton: View {
                 url: nil,
                 subtasks: []
             ),
-            onToggle: {},
-            onTomorrow: {},
-            onDelete: {},
-            onLinkTapped: nil,
-            onSubtaskToggle: { _ in }
+            isEditing: false,
+            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in },
+            onLinkTapped: nil, onSubtaskToggle: { _ in }
         )
 
         TaskRow(
@@ -385,11 +424,9 @@ private struct RowActionButton: View {
                     TetherSubtaskItem(id: "2b", title: "Write token refresh tests", isCompleted: false, url: nil)
                 ]
             ),
-            onToggle: {},
-            onTomorrow: {},
-            onDelete: {},
-            onLinkTapped: {},
-            onSubtaskToggle: { _ in }
+            isEditing: false,
+            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in },
+            onLinkTapped: {}, onSubtaskToggle: { _ in }
         )
 
         TaskRow(
@@ -400,11 +437,9 @@ private struct RowActionButton: View {
                 url: URL(string: "https://example.com"),
                 subtasks: []
             ),
-            onToggle: {},
-            onTomorrow: {},
-            onDelete: {},
-            onLinkTapped: {},
-            onSubtaskToggle: { _ in }
+            isEditing: true,
+            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in },
+            onLinkTapped: {}, onSubtaskToggle: { _ in }
         )
     }
     .frame(width: DesignTokens.popoverWidth)

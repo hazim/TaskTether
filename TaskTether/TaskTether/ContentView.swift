@@ -3,7 +3,7 @@
 //  TaskTether
 //
 //  Created by Hazim Sami on 10/03/2026.
-//  Refactored: 13/03/2026 · 13:55
+//  Refactored: 13/03/2026 · 19:30
 //
 
 import SwiftUI
@@ -42,6 +42,15 @@ struct ContentView: View {
     }
 }
 
+// MARK: - ShellHeightKey
+// PreferenceKey used to pass the shell's measured height up to the parent view.
+private struct ShellHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 // MARK: - MainContainerView
 //
 // WINDOW ANCHOR FIX:
@@ -65,7 +74,16 @@ struct MainContainerView: View {
     @ObservedObject var remindersManager:   RemindersManager
     @ObservedObject var googleTasksManager: GoogleTasksManager
 
-    @State private var activePanel:      Panel   = .compact
+    @State private var activePanel:      Panel         = .compact
+    // Captures the shell's intrinsic height so TodayView can be constrained to match.
+    // Without this, TodayView's ScrollView reports 12-item content height to the HStack,
+    // making the window far too tall even when Today is visually hidden at width=0.
+    @State private var shellHeight:       CGFloat       = 0
+
+    // Tracks whether the InsightPanel should be visible.
+    // Persists when switching to Today so Expanded→Today keeps the taller shell height.
+    // Compact→Today leaves it false so the shell stays at compact height.
+    @State private var showInsightPanel: Bool          = false
 
     private var todayIsOpen: Bool { activePanel == .today }
 
@@ -82,17 +100,21 @@ struct MainContainerView: View {
             // Width animates 0 → 300. Clipped so content never bleeds.
 
             TodayView(
-                tasks:           placeholderTasks,
-                onToggle:        { _ in },
-                onTomorrow:      { _ in },
-                onDelete:        { _ in },
+                tasks:           tasks,
+                onToggle:        { id in toggleTask(id) },
+                onTomorrow:      { id in removeTask(id) },
+                onDelete:        { id in removeTask(id) },
+                onEdit:          { _ in },
+                onCommit:        { id, newTitle in renameTask(id, newTitle) },
                 onLinkTapped:    { _, _ in },
-                onSubtaskToggle: { _, _ in },
-                onAddTask:       {}
+                onSubtaskToggle: { taskId, subtaskId in toggleSubtask(taskId, subtaskId) },
+                onMove:          { fromId, toId in moveTask(fromId: fromId, toId: toId) },
+                onAddTask:       { title in addTask(title) }
             )
-            // Animation applied here only — affects width/opacity, not window height.
-            // Safe for MenuBarExtra.
-            .frame(width: todayIsOpen ? DesignTokens.popoverWidth : 0)
+            // Height is pinned to shellHeight so TodayView's ScrollView never drives
+            // the HStack (and therefore the window) to a taller size than the shell.
+            .frame(width: todayIsOpen ? DesignTokens.popoverWidth : 0,
+                   height: shellHeight > 0 ? shellHeight : nil)
             .opacity(todayIsOpen ? 1 : 0)
             .animation(.spring(response: 0.42, dampingFraction: 0.78), value: todayIsOpen)
             .clipped()
@@ -102,19 +124,39 @@ struct MainContainerView: View {
                 Rectangle()
                     .fill(themeManager.border)
                     .frame(width: 1)
-                    // No transition — instant height change is the only safe option in MenuBarExtra
             }
 
             // ── Shell (RIGHT side) ───────────────────────────────
-            // Always 300px. Never moves.
+            // Always 300px. Measures its own height so TodayView can match it.
             shellContent
                 .frame(width: DesignTokens.popoverWidth)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: ShellHeightKey.self, value: geo.size.height)
+                    }
+                )
+        }
+        .onPreferenceChange(ShellHeightKey.self) { height in
+            if height > 0 { shellHeight = height }
         }
         .background(themeManager.backgroundPrimary)
-        .preferredColorScheme(themeManager.colorScheme)
+        .preferredColorScheme(themeManager.activeTheme.appearance == "light" ? .light : .dark)
         // No animation on the outer container — any implicit animation here
         // propagates to height changes and causes MenuBarExtra's constraint loop crash.
         // Animations are applied directly on the Today panel views below.
+        .onChange(of: activePanel) { _, newPanel in
+            // When switching to Today, preserve the current insight panel state
+            // so Expanded→Today keeps the taller shell height.
+            // When switching away from Today, update based on the new destination.
+            if newPanel != .today {
+                var t = Transaction(animation: nil)
+                t.disablesAnimations = true
+                withTransaction(t) {
+                    showInsightPanel = (newPanel == .expanded)
+                }
+            }
+            // If newPanel == .today, showInsightPanel is intentionally left unchanged.
+        }
     }
 
     // MARK: Shell — never redraws as a unit
@@ -145,12 +187,15 @@ struct MainContainerView: View {
                 remindersStatus:   remindersStatus,
                 googleTasksStatus: googleTasksStatus
             )
+            // fixedSize prevents Zone 4 from stretching when the window is taller
+            // than compact height (e.g. coming back from Expanded or Today+Expanded).
+            .fixedSize(horizontal: false, vertical: true)
 
             // Zones 5–7 — InsightPanel
             // MenuBarExtra cannot animate height changes without crashing (constraint loop).
             // Window height snaps instantly; content fades in/out with opacity.
             // The pill slide in Zone 2 provides the visual transition feel.
-            if activePanel == .expanded {
+            if showInsightPanel {
                 shellDivider
                 InsightPanelView(
                     todayScore:         74,
@@ -193,18 +238,114 @@ struct MainContainerView: View {
         googleTasksManager.isConnected ? .connected : .error
     }
 
-    private var placeholderTasks: [TetherTaskItem] {[
-        TetherTaskItem(id: "1", title: "Review pull request #42",
-                       isCompleted: true, url: nil, subtasks: []),
-        TetherTaskItem(id: "2", title: "Write unit tests for auth module",
+    // MARK: - Placeholder task state
+    // Replaced in Group 4 with real TetherTask objects from SyncEngine.
+    // @State so callbacks can mutate the list and the UI updates live.
+    @State private var tasks: [TetherTaskItem] = [
+        TetherTaskItem(id: "1",  title: "Review pull request #42",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "2",  title: "Write unit tests for auth module",
                        isCompleted: false, url: URL(string: "https://example.com"),
                        subtasks: [
-                           TetherSubtaskItem(id: "2a", title: "Write login tests",         isCompleted: true,  url: nil),
-                           TetherSubtaskItem(id: "2b", title: "Write token refresh tests", isCompleted: false, url: nil)
+                           TetherSubtaskItem(id: "2a", title: "Write login tests",         isCompleted: false, url: nil),
+                           TetherSubtaskItem(id: "2b", title: "Write token refresh tests", isCompleted: false, url: nil),
+                           TetherSubtaskItem(id: "2c", title: "Write logout tests",        isCompleted: false, url: nil)
                        ]),
-        TetherTaskItem(id: "3", title: "Call with client re: scope",
-                       isCompleted: false, url: nil, subtasks: [])
-    ]}
+        TetherTaskItem(id: "3",  title: "Call with client re: scope",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "4",  title: "Update API documentation",
+                       isCompleted: false, url: URL(string: "https://example.com"), subtasks: []),
+        TetherTaskItem(id: "5",  title: "Fix layout bug on dashboard",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "6",  title: "Deploy staging environment",
+                       isCompleted: false, url: nil,
+                       subtasks: [
+                           TetherSubtaskItem(id: "6a", title: "Run pre-deploy checks", isCompleted: false, url: nil),
+                           TetherSubtaskItem(id: "6b", title: "Notify team",           isCompleted: false, url: nil)
+                       ]),
+        TetherTaskItem(id: "7",  title: "Review analytics report",
+                       isCompleted: false, url: URL(string: "https://example.com"), subtasks: []),
+        TetherTaskItem(id: "8",  title: "Sync with design team",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "9",  title: "Write release notes for v1.2",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "10", title: "Archive old project files",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "11", title: "Check server logs",
+                       isCompleted: false, url: nil, subtasks: []),
+        TetherTaskItem(id: "12", title: "Plan Q2 sprint goals",
+                       isCompleted: false, url: URL(string: "https://example.com"), subtasks: [])
+    ]
+
+    // MARK: - Task Callbacks
+
+    /// Toggle completion. Completed tasks sink to bottom; un-completing floats back up.
+    private func toggleTask(_ id: String) {
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[idx].isCompleted.toggle()
+        let completed = tasks[idx].isCompleted
+        let task = tasks.remove(at: idx)
+        if completed {
+            tasks.append(task)
+        } else {
+            let insertAt = tasks.firstIndex(where: { $0.isCompleted }) ?? tasks.count
+            tasks.insert(task, at: insertAt)
+        }
+    }
+
+    /// Toggle a subtask. Completed subtasks sink to bottom of their parent's list.
+    private func toggleSubtask(_ taskId: String, _ subtaskId: String) {
+        guard let tIdx = tasks.firstIndex(where: { $0.id == taskId }),
+              let sIdx = tasks[tIdx].subtasks.firstIndex(where: { $0.id == subtaskId })
+        else { return }
+        tasks[tIdx].subtasks[sIdx].isCompleted.toggle()
+        let completed = tasks[tIdx].subtasks[sIdx].isCompleted
+        let subtask = tasks[tIdx].subtasks.remove(at: sIdx)
+        if completed {
+            tasks[tIdx].subtasks.append(subtask)
+        } else {
+            let insertAt = tasks[tIdx].subtasks.firstIndex(where: { $0.isCompleted }) ?? tasks[tIdx].subtasks.count
+            tasks[tIdx].subtasks.insert(subtask, at: insertAt)
+        }
+    }
+
+    /// Remove a task — used by both onDelete and onTomorrow.
+    private func removeTask(_ id: String) {
+        tasks.removeAll { $0.id == id }
+    }
+
+    /// Move a task. Only moves within the same completion group so sort order is preserved.
+    private func addTask(_ title: String) {
+        let newTask = TetherTaskItem(
+            id:          UUID().uuidString,
+            title:       title,
+            isCompleted: false,
+            url:         nil,
+            subtasks:    []
+        )
+        // Prepend to the incomplete tasks at the top of the list
+        if let firstCompleted = tasks.firstIndex(where: { $0.isCompleted }) {
+            tasks.insert(newTask, at: firstCompleted)
+        } else {
+            tasks.insert(newTask, at: 0)
+        }
+    }
+
+    private func renameTask(_ id: String, _ newTitle: String) {
+        guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[index].title = newTitle
+    }
+
+    private func moveTask(fromId: String, toId: String) {
+        guard fromId != toId,
+              let fromIdx = tasks.firstIndex(where: { $0.id == fromId }),
+              let toIdx   = tasks.firstIndex(where: { $0.id == toId }),
+              tasks[fromIdx].isCompleted == tasks[toIdx].isCompleted
+        else { return }
+        let task = tasks.remove(at: fromIdx)
+        let adjusted = fromIdx < toIdx ? toIdx - 1 : toIdx
+        tasks.insert(task, at: adjusted)
+    }
 }
 
 // MARK: - Zone 1: AppTitleBar
@@ -225,10 +366,7 @@ private struct AppTitleBar: View {
             Spacer()
 
             HStack(spacing: 2) {
-                TitleBarIconButton(
-                    icon:    "gear",
-                    tooltip: String(localized: "tooltip.settings")
-                ) { /* Settings — wired in Group 2 */ }
+                SettingsGearButton()
 
                 TitleBarIconButton(
                     icon:    "rectangle.portrait.and.arrow.right",
@@ -268,6 +406,32 @@ private struct TitleBarIconButton: View {
         }
         .buttonStyle(.plain)
         .help(tooltip)
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Settings Gear Button
+// SettingsLink is the correct SwiftUI way to open the Settings scene.
+// It is wrapped here to match the TitleBarIconButton visual style.
+
+private struct SettingsGearButton: View {
+
+    @EnvironmentObject private var themeManager: ThemeManager
+    @State private var isHovered = false
+
+    var body: some View {
+        SettingsLink {
+            Image(systemName: "gear")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(isHovered ? themeManager.textPrimary : themeManager.textSecondary)
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(isHovered ? themeManager.surface2 : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(String(localized: "tooltip.settings"))
         .onHover { isHovered = $0 }
     }
 }
@@ -562,7 +726,7 @@ struct ConnectView: View {
         .padding(DesignTokens.paddingMd)
         .frame(width: DesignTokens.popoverWidth)
         .background(themeManager.backgroundPrimary)
-        .preferredColorScheme(themeManager.colorScheme)
+        .preferredColorScheme(themeManager.activeTheme.appearance == "light" ? .light : .dark)
     }
 }
 

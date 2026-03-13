@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
     "·" : {
 
     },
@@ -294,6 +297,270 @@
         }
       }
     },
+    "settings.account.google" : {
+      "comment" : "Read-only label showing the connected Google account row.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google account"
+          }
+        }
+      }
+    },
+    "settings.alert.ok" : {
+      "comment" : "Dismiss button label used in Settings alerts.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "settings.appearance.dark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always Dark"
+          }
+        }
+      }
+    },
+    "settings.appearance.label" : {
+      "comment" : "Label for the appearance segmented control in Settings.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        }
+      }
+    },
+    "settings.appearance.light" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always Light"
+          }
+        }
+      }
+    },
+    "settings.appearance.system" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        }
+      }
+    },
+    "settings.customtheme.description" : {
+      "comment" : "Helper text in the custom themes section explaining what the load button does.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load a community theme from a JSON file."
+          }
+        }
+      }
+    },
+    "settings.customtheme.error.title" : {
+      "comment" : "Alert title shown when a custom theme JSON file cannot be loaded.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load theme"
+          }
+        }
+      }
+    },
+    "settings.customtheme.load" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load theme from file…"
+          }
+        }
+      }
+    },
+    "settings.customtheme.panel.title" : {
+      "comment" : "Title bar of the NSOpenPanel when the user picks a custom theme file.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a theme file"
+          }
+        }
+      }
+    },
+    "settings.section.account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        }
+      }
+    },
+    "settings.section.appearance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        }
+      }
+    },
+    "settings.section.customtheme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Themes"
+          }
+        }
+      }
+    },
+    "settings.section.support" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support TaskTether"
+          }
+        }
+      }
+    },
+    "settings.section.sync" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync"
+          }
+        }
+      }
+    },
+    "settings.section.theme" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        }
+      }
+    },
+    "settings.signout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign Out"
+          }
+        }
+      }
+    },
+    "settings.support.description" : {
+      "comment" : "Helper text in the support section shown next to the donation button.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TaskTether is free and open source."
+          }
+        }
+      }
+    },
+    "settings.support.link" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buy me a coffee ☕️"
+          }
+        }
+      }
+    },
+    "settings.sync.interval" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync interval"
+          }
+        }
+      }
+    },
+    "settings.sync.interval.minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d minutes"
+          }
+        }
+      }
+    },
+    "settings.tab.general" : {
+      "comment" : "Label for the General tab in the Settings window.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        }
+      }
+    },
+    "settings.theme.dark" : {
+      "comment" : "Label for the dark theme slot picker in Settings.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark theme"
+          }
+        }
+      }
+    },
+    "settings.theme.light" : {
+      "comment" : "Label for the light theme slot picker in Settings.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light theme"
+          }
+        }
+      }
+    },
     "status.connected" : {
       "comment" : "Accessibility label and tooltip for a connected status dot.",
       "extractionState" : "stale",
@@ -387,6 +654,17 @@
     },
     "TaskTether" : {
 
+    },
+    "today.add.placeholder" : {
+      "comment" : "Placeholder text inside the inline add task TextField.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New task…"
+          }
+        }
+      }
     },
     "today.add.tooltip" : {
       "extractionState" : "manual",
