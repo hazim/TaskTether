@@ -127,8 +127,49 @@ class GoogleAuthManager: ObservableObject {
         isAuthenticated = false
     }
 
+    // MARK: - Token Access
+
     func getAccessToken() -> String? {
         return accessToken
+    }
+
+    // MARK: - Token Refresh
+    // Called by SyncEngine when a request returns 401.
+    // On success, updates the stored access token and calls completion(true).
+    // On failure, signs the user out and calls completion(false).
+
+    func refreshAccessToken(completion: @escaping (Bool) -> Void) {
+        guard let refresh = refreshToken else {
+            DispatchQueue.main.async { self.signOut() }
+            completion(false)
+            return
+        }
+
+        var request = URLRequest(url: URL(string: "https://oauth2.googleapis.com/token")!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        let body = [
+            "client_id":     clientId,
+            "client_secret": clientSecret,
+            "refresh_token": refresh,
+            "grant_type":    "refresh_token"
+        ].map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+
+        request.httpBody = body.data(using: .utf8)
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let newToken = json["access_token"] as? String else {
+                DispatchQueue.main.async { self.signOut() }
+                completion(false)
+                return
+            }
+            self.accessToken = newToken
+            self.saveTokensToKeychain()
+            completion(true)
+        }.resume()
     }
 
     // MARK: - Keychain

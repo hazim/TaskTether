@@ -177,6 +177,31 @@ class GoogleTasksManager: ObservableObject {
         }.resume()
     }
     
+    func updateTask(taskId: String, title: String, notes: String?, isCompleted: Bool, dueDate: Date?) {
+        guard let token = authManager.getAccessToken(),
+              let listId = taskListId else { return }
+
+        var taskData: [String: Any] = [
+            "title":  title,
+            "status": isCompleted ? "completed" : "needsAction"
+        ]
+        if let notes = notes { taskData["notes"] = notes }
+        if let due = dueDate {
+            let formatter = ISO8601DateFormatter()
+            taskData["due"] = formatter.string(from: due)
+        }
+
+        var request = URLRequest(url: URL(string: "\(baseURL)/lists/\(listId)/tasks/\(taskId)")!)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: taskData)
+
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            print("Updated task in Google Tasks: \(taskId)")
+        }.resume()
+    }
+
     func deleteTask(taskId: String) {
         guard let token = authManager.getAccessToken(),
               let listId = taskListId else { return }
@@ -194,27 +219,27 @@ class GoogleTasksManager: ObservableObject {
 // MARK: - Google Task Model
 
 struct GoogleTask {
-    let id: String
-    let title: String
-    let notes: String?
+    let id:          String
+    let title:       String
+    let notes:       String?
     let isCompleted: Bool
-    let dueDate: Date?
-    let links: [String]
-    
+    let dueDate:     Date?
+    let updatedDate: Date?    // "updated" field from Google Tasks API — used for conflict resolution
+    let links:       [String]
+
     init?(from dict: [String: Any]) {
-        guard let id = dict["id"] as? String,
+        guard let id    = dict["id"]    as? String,
               let title = dict["title"] as? String else { return nil }
-        self.id = id
-        self.title = title
-        self.notes = dict["notes"] as? String
+        self.id          = id
+        self.title       = title
+        self.notes       = dict["notes"] as? String
         self.isCompleted = (dict["status"] as? String) == "completed"
-        self.links = (dict["links"] as? [[String: Any]])?.compactMap { $0["link"] as? String } ?? []
-        
-        if let dueString = dict["due"] as? String {
-            let formatter = ISO8601DateFormatter()
-            self.dueDate = formatter.date(from: dueString)
-        } else {
-            self.dueDate = nil
-        }
+        self.links       = (dict["links"] as? [[String: Any]])?.compactMap { $0["link"] as? String } ?? []
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        self.dueDate = (dict["due"] as? String).flatMap { formatter.date(from: $0) }
+        self.updatedDate = (dict["updated"] as? String).flatMap { formatter.date(from: $0) }
     }
 }

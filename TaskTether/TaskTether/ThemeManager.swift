@@ -139,7 +139,9 @@ class ThemeManager: ObservableObject {
         self.syncInterval       = savedInterval > 0 ? savedInterval : 15
 
         // Determine initial system appearance before resolving the active theme.
-        self.systemIsDark = NSApp.effectiveAppearance
+        // NSApp may not be fully initialised yet if ThemeManager is created early
+        // in the app lifecycle — fall back to light if unavailable.
+        self.systemIsDark = NSApp?.effectiveAppearance
             .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
 
         // Resolve the starting active theme.
@@ -153,14 +155,30 @@ class ThemeManager: ObservableObject {
             themes:       loaded
         )
 
-        // Observe macOS effective appearance changes so "System" mode reacts live.
+        // Defer KVO setup until after the app has fully launched.
+        // NSApp is not guaranteed to be non-nil during @StateObject init in TaskTetherApp.
+        DispatchQueue.main.async { [weak self] in
+            self?.startAppearanceObservation()
+        }
+    }
+
+    // MARK: - Appearance Observation
+
+    private func startAppearanceObservation() {
+        guard appearanceObservation == nil else { return }
+
+        // Correct the initial value now that NSApp is available.
+        systemIsDark = NSApp.effectiveAppearance
+            .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        resolveActiveTheme()
+
         appearanceObservation = NSApp.observe(
             \.effectiveAppearance,
             options: [.new]
         ) { [weak self] _, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.systemIsDark = NSApp.effectiveAppearance
+                self.systemIsDark = NSApp?.effectiveAppearance
                     .bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 self.resolveActiveTheme()
             }
@@ -196,7 +214,28 @@ class ThemeManager: ObservableObject {
         }
         return themes.first(where: { $0.id == targetId })
             ?? themes.first(where: { $0.id == lightId })
-            ?? themes.first!
+            ?? themes.first
+            ?? Theme(
+                id: "fallback",
+                name: "Fallback",
+                appearance: "light",
+                colors: ThemeColors(
+                    backgroundPrimary:   "#FFFFFF",
+                    backgroundSecondary: "#F5F5F5",
+                    surface:             "#EEEEEE",
+                    surface2:            "#E0E0E0",
+                    border:              "#CCCCCC",
+                    accent:              "#0066CC",
+                    accentForeground:    "#FFFFFF",
+                    textPrimary:         "#000000",
+                    textSecondary:       "#555555",
+                    textTertiary:        "#999999",
+                    success:             "#34C759",
+                    warning:             "#FF9500",
+                    danger:              "#FF3B30",
+                    sparkline:           "#0066CC"
+                )
+            )
     }
 
     // MARK: - Load Custom Theme from File

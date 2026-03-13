@@ -12,16 +12,11 @@ import SwiftUI
 
 struct ContentView: View {
 
-    @EnvironmentObject private var themeManager: ThemeManager
-    @StateObject private var remindersManager   = RemindersManager()
-    @StateObject private var authManager:         GoogleAuthManager
-    @StateObject private var googleTasksManager:  GoogleTasksManager
-
-    init() {
-        let auth = GoogleAuthManager()
-        _authManager        = StateObject(wrappedValue: auth)
-        _googleTasksManager = StateObject(wrappedValue: GoogleTasksManager(authManager: auth))
-    }
+    @EnvironmentObject private var themeManager:       ThemeManager
+    @EnvironmentObject private var authManager:         GoogleAuthManager
+    @EnvironmentObject private var remindersManager:    RemindersManager
+    @EnvironmentObject private var googleTasksManager:  GoogleTasksManager
+    @EnvironmentObject private var syncEngine:          SyncEngine
 
     var body: some View {
         Group {
@@ -36,8 +31,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            remindersManager.requestAccess()
-            if authManager.isAuthenticated { googleTasksManager.setup() }
+            // Startup handled in MainContainerView.onAppear via SyncEngine.start()
         }
     }
 }
@@ -68,13 +62,15 @@ private struct ShellHeightKey: PreferenceKey {
 
 struct MainContainerView: View {
 
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var themeManager:       ThemeManager
+    @EnvironmentObject private var syncEngine:          SyncEngine
 
     @ObservedObject var authManager:        GoogleAuthManager
     @ObservedObject var remindersManager:   RemindersManager
     @ObservedObject var googleTasksManager: GoogleTasksManager
 
     @State private var activePanel:      Panel         = .compact
+    @State private var engineStarted:    Bool          = false
     // Captures the shell's intrinsic height so TodayView can be constrained to match.
     // Without this, TodayView's ScrollView reports 12-item content height to the HStack,
     // making the window far too tall even when Today is visually hidden at width=0.
@@ -141,6 +137,13 @@ struct MainContainerView: View {
         }
         .background(themeManager.backgroundPrimary)
         .preferredColorScheme(themeManager.activeTheme.appearance == "light" ? .light : .dark)
+        .onAppear {
+            guard !engineStarted else { return }
+            engineStarted = true
+            remindersManager.requestAccess()
+            googleTasksManager.setup()
+            syncEngine.start()
+        }
         // No animation on the outer container — any implicit animation here
         // propagates to height changes and causes MenuBarExtra's constraint loop crash.
         // Animations are applied directly on the Today panel views below.
@@ -179,7 +182,7 @@ struct MainContainerView: View {
 
             // Zone 3 — SyncStrip
             shellDivider
-            SyncStripRow(lastSyncText: String(localized: "sync.last.never"))
+            SyncStripRow(lastSyncText: syncEngine.lastSyncText)
 
             // Zone 4 — ServiceColumns
             shellDivider
@@ -212,7 +215,7 @@ struct MainContainerView: View {
 
             // Zone 8 — SyncButton (the drawer handle — moves down as drawer opens)
             shellDivider
-            SyncButtonRow(isSyncing: false, onSyncTapped: {})
+            SyncButtonRow(isSyncing: syncEngine.state == .syncing, onSyncTapped: { syncEngine.syncNow() })
         }
         .background(themeManager.backgroundPrimary)
     }
