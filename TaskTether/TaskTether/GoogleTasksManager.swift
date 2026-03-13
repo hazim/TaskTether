@@ -125,40 +125,81 @@ class GoogleTasksManager: ObservableObject {
         var request = URLRequest(url: URL(string: "\(baseURL)/lists/\(listId)/tasks?showCompleted=true")!)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let items = json["items"] as? [[String: Any]] else {
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let error {
+                print("GoogleTasksManager: fetchTasks error — \(error.localizedDescription)")
                 completion([])
                 return
             }
-            
+            if let http = response as? HTTPURLResponse, http.statusCode == 401 {
+                self?.authManager.refreshAccessToken { success in
+                    if success { self?.fetchTasks(completion: completion) }
+                    else { completion([]) }
+                }
+                return
+            }
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                print("GoogleTasksManager: fetchTasks — bad response")
+                completion([])
+                return
+            }
+            let items = json["items"] as? [[String: Any]] ?? []
             let tasks = items.compactMap { GoogleTask(from: $0) }
+            print("GoogleTasksManager: fetched \(tasks.count) task(s) ✅")
             completion(tasks)
         }.resume()
     }
     
     // MARK: - Write Tasks
     
-    func createTask(title: String, notes: String? = nil, dueDate: Date? = nil) {
+    // Returns the Google Task ID on success so SyncEngine can stamp it immediately,
+    // preventing duplicate creation on the next sync cycle.
+    func createTask(
+        title:      String,
+        notes:      String?  = nil,
+        dueDate:    Date?    = nil,
+        completion: ((String?) -> Void)? = nil
+    ) {
         guard let token = authManager.getAccessToken(),
-              let listId = taskListId else { return }
-        
+              let listId = taskListId else { completion?(nil); return }
+
         var taskData: [String: Any] = ["title": title]
-        if let notes = notes { taskData["notes"] = notes }
-        if let due = dueDate {
+        if let notes   { taskData["notes"] = notes }
+        if let dueDate {
             let formatter = ISO8601DateFormatter()
-            taskData["due"] = formatter.string(from: due)
+            taskData["due"] = formatter.string(from: dueDate)
         }
-        
+
         var request = URLRequest(url: URL(string: "\(baseURL)/lists/\(listId)/tasks")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: taskData)
-        
-        URLSession.shared.dataTask(with: request) { _, _, _ in
-            print("Created task in Google Tasks: \(title)")
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let error {
+                print("GoogleTasksManager: createTask error — \(error.localizedDescription)")
+                completion?(nil)
+                return
+            }
+            // Handle 401 — refresh token and retry once
+            if let http = response as? HTTPURLResponse, http.statusCode == 401 {
+                self?.authManager.refreshAccessToken { success in
+                    if success { self?.createTask(title: title, notes: notes, dueDate: dueDate, completion: completion) }
+                    else { completion?(nil) }
+                }
+                return
+            }
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let id   = json["id"] as? String else {
+                print("GoogleTasksManager: createTask — unexpected response: \(String(data: data ?? Data(), encoding: .utf8) ?? "nil")")
+                completion?(nil)
+                return
+            }
+            print("Created task in Google Tasks: \(title) (id: \(id)) ✅")
+            completion?(id)
         }.resume()
     }
     
@@ -185,10 +226,10 @@ class GoogleTasksManager: ObservableObject {
             "title":  title,
             "status": isCompleted ? "completed" : "needsAction"
         ]
-        if let notes = notes { taskData["notes"] = notes }
-        if let due = dueDate {
+        if let notes   { taskData["notes"] = notes }
+        if let dueDate {
             let formatter = ISO8601DateFormatter()
-            taskData["due"] = formatter.string(from: due)
+            taskData["due"] = formatter.string(from: dueDate)
         }
 
         var request = URLRequest(url: URL(string: "\(baseURL)/lists/\(listId)/tasks/\(taskId)")!)
@@ -197,21 +238,49 @@ class GoogleTasksManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: taskData)
 
-        URLSession.shared.dataTask(with: request) { _, _, _ in
-            print("Updated task in Google Tasks: \(taskId)")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            if let error {
+                print("GoogleTasksManager: updateTask error — \(error.localizedDescription)")
+                return
+            }
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 {
+                    self?.authManager.refreshAccessToken { success in
+                        if success { self?.updateTask(taskId: taskId, title: title, notes: notes, isCompleted: isCompleted, dueDate: dueDate) }
+                    }
+                } else if http.statusCode == 200 {
+                    print("Updated task in Google Tasks: \(title) ✅")
+                } else {
+                    print("GoogleTasksManager: updateTask HTTP \(http.statusCode) — \(String(data: data ?? Data(), encoding: .utf8) ?? "nil")")
+                }
+            }
         }.resume()
     }
 
     func deleteTask(taskId: String) {
         guard let token = authManager.getAccessToken(),
               let listId = taskListId else { return }
-        
+
         var request = URLRequest(url: URL(string: "\(baseURL)/lists/\(listId)/tasks/\(taskId)")!)
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        URLSession.shared.dataTask(with: request) { _, _, _ in
-            print("Deleted task in Google Tasks: \(taskId)")
+
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            if let error {
+                print("GoogleTasksManager: deleteTask error — \(error.localizedDescription)")
+                return
+            }
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 {
+                    self?.authManager.refreshAccessToken { success in
+                        if success { self?.deleteTask(taskId: taskId) }
+                    }
+                } else if http.statusCode == 204 {
+                    print("Deleted task in Google Tasks: \(taskId) ✅")
+                } else {
+                    print("GoogleTasksManager: deleteTask HTTP \(http.statusCode)")
+                }
+            }
         }.resume()
     }
 }

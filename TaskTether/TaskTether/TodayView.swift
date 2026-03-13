@@ -26,7 +26,7 @@ struct TodayView: View {
     let onTomorrow:      (String) -> Void
     let onDelete:        (String) -> Void
     let onEdit:          (String) -> Void
-    let onCommit:        (String, String) -> Void   // (taskId, newTitle)
+    let onCommit:        (String, String) -> Void   // (taskId, newTitle) — on Enter/blur
     let onLinkTapped:    (String, URL) -> Void
     let onSubtaskToggle: (String, String) -> Void
     let onMove:          (String, String) -> Void
@@ -152,6 +152,7 @@ struct TodayView: View {
                                                  onCommit(task.id, newTitle)
                                                  editingTaskId = nil
                                              },
+                            onCancel:        { editingTaskId = nil },
                             onLinkTapped:    task.url != nil ? { onLinkTapped(task.id, task.url!) } : nil,
                             onSubtaskToggle: { subtaskId in onSubtaskToggle(task.id, subtaskId) }
                         )
@@ -231,10 +232,12 @@ private struct AddTaskRow: View {
     var body: some View {
         HStack(spacing: DesignTokens.spacingSm - 1) {
 
-            // Placeholder checkbox — unchecked, non-interactive
+            // Placeholder checkbox — matches CheckboxButton's 32×32 hit target
+            // frame so AddTaskRow and TaskRow are identical heights.
             Circle()
                 .strokeBorder(themeManager.border, lineWidth: 1.5)
                 .frame(width: 16, height: 16)
+                .frame(width: 32, height: 32)
 
             TextField(String(localized: "today.add.placeholder"), text: $buffer)
                 .font(.system(size: DesignTokens.fontSm))
@@ -249,7 +252,13 @@ private struct AddTaskRow: View {
         .padding(.leading, DesignTokens.paddingMd)
         .padding(.trailing, DesignTokens.paddingSm)
         .background(themeManager.surface)
-        .onAppear { isFocused = true }
+        .onAppear {
+            // MenuBarExtra windows are not always key on first appearance.
+            // Make the window key explicitly before setting focus so the
+            // TextField receives input without requiring a second click.
+            NSApp.keyWindow?.makeKey()
+            isFocused = true
+        }
     }
 }
 

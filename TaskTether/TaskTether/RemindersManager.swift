@@ -139,29 +139,35 @@ class RemindersManager: ObservableObject {
         }
     }
 
-    func createTask(title: String, dueDate: Date? = nil, notes: String? = nil) {
-        guard isAuthorised else { return }
-        
+    // Returns the calendarItemIdentifier of the created reminder so SyncEngine
+    // can immediately stamp the local TetherTask — preventing duplicate creation
+    // on the next sync cycle.
+    @discardableResult
+    func createTask(title: String, dueDate: Date? = nil, notes: String? = nil) -> String? {
+        guard isAuthorised else { return nil }
+
         let calendars = store.calendars(for: .reminder)
-        guard let taskTetherList = calendars.first(where: { $0.title == listName }) else { return }
-        
+        guard let taskTetherList = calendars.first(where: { $0.title == listName }) else { return nil }
+
         let reminder = EKReminder(eventStore: store)
-        reminder.title = title
+        reminder.title    = title
         reminder.calendar = taskTetherList
-        reminder.notes = notes
-        
-        if let dueDate = dueDate {
+        reminder.notes    = notes
+
+        if let dueDate {
             reminder.dueDateComponents = Calendar.current.dateComponents(
                 [.year, .month, .day, .hour, .minute],
                 from: dueDate
             )
         }
-        
+
         do {
             try store.save(reminder, commit: true)
             print("Created task in Reminders: \(title)")
+            return reminder.calendarItemIdentifier
         } catch {
             print("Failed to create task: \(error)")
+            return nil
         }
     }
     

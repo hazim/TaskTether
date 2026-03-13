@@ -184,10 +184,32 @@ class GoogleAuthManager: ObservableObject {
     }
 
     private func loadTokensFromKeychain() {
-        accessToken = loadFromKeychain(key: "tasktether_access_token")
+        accessToken  = loadFromKeychain(key: "tasktether_access_token")
         refreshToken = loadFromKeychain(key: "tasktether_refresh_token")
-        if accessToken != nil {
-            isAuthenticated = true
+
+        guard accessToken != nil else { return }
+
+        if let refresh = refreshToken {
+            // Refresh token present — proactively refresh the access token on
+            // launch so we never start with an expired token.
+            print("GoogleAuthManager: refreshing access token on launch...")
+            refreshAccessToken { [weak self] success in
+                DispatchQueue.main.async {
+                    if success {
+                        self?.isAuthenticated = true
+                        print("GoogleAuthManager: token refreshed ✅")
+                    } else {
+                        // Refresh failed (revoked) — clear and require re-auth.
+                        print("GoogleAuthManager: refresh failed — clearing tokens, re-auth required")
+                        self?.signOut()
+                    }
+                }
+            }
+        } else {
+            // Access token with no refresh token — almost certainly stale.
+            // Clear and require the user to connect again.
+            print("GoogleAuthManager: stale token with no refresh — clearing, re-auth required")
+            signOut()
         }
     }
 

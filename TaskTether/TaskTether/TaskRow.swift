@@ -50,13 +50,16 @@ struct TaskRow: View {
     let onDelete:        () -> Void
     let onEdit:          () -> Void
     let onCommit:        (String) -> Void
+    let onCancel:        () -> Void
     let onLinkTapped:    (() -> Void)?
     let onSubtaskToggle: (String) -> Void
 
     @State private var isHovered   = false
     @State private var dragOffset  = CGFloat.zero
     @State private var isDragging  = false
-    @State private var editBuffer  = ""
+    @State private var editBuffer    = ""
+    @State private var hasAppeared   = false  // Guard against onChange firing on mount/rebuild
+    @State private var cancelledEdit = false  // True when Escape was pressed — skip commitEdit
 
     // How far right the user needs to drag to trigger "move to tomorrow"
     private let swipeThreshold: CGFloat = 60
@@ -206,8 +209,16 @@ struct TaskRow: View {
                 }
             }
         }
+        .onAppear { hasAppeared = true }
         .onChange(of: isEditing) { _, editing in
-            if !editing { commitEdit() }
+            guard hasAppeared else { return }
+            if !editing {
+                if cancelledEdit {
+                    cancelledEdit = false  // Reset for next edit session
+                } else {
+                    commitEdit()
+                }
+            }
         }
     }
 
@@ -220,9 +231,9 @@ struct TaskRow: View {
     }
 
     private func cancelEdit() {
-        // Notify with the original title so the parent clears editingTaskId
-        // without changing the stored value.
-        onCommit(task.title)
+        cancelledEdit = true
+        editBuffer    = task.title
+        onCancel()
     }
 }
 
@@ -345,6 +356,11 @@ private struct TaskCheckbox: View {
                         .foregroundStyle(themeManager.accentForeground)
                 }
             }
+            // Expand the hit target to 32×32 minimum without changing visual size.
+            // contentShape clips the tappable area to the padded rectangle so
+            // clicks anywhere in that region register correctly.
+            .frame(width: max(diameter, 32), height: max(diameter, 32))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: DesignTokens.animFast), value: isCompleted)
@@ -409,7 +425,7 @@ private struct RowActionButton: View {
                 subtasks: []
             ),
             isEditing: false,
-            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in },
+            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in }, onCancel: {},
             onLinkTapped: nil, onSubtaskToggle: { _ in }
         )
 
@@ -425,7 +441,7 @@ private struct RowActionButton: View {
                 ]
             ),
             isEditing: false,
-            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in },
+            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in }, onCancel: {},
             onLinkTapped: {}, onSubtaskToggle: { _ in }
         )
 
@@ -438,7 +454,7 @@ private struct RowActionButton: View {
                 subtasks: []
             ),
             isEditing: true,
-            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in },
+            onToggle: {}, onTomorrow: {}, onDelete: {}, onEdit: {}, onCommit: { _ in }, onCancel: {},
             onLinkTapped: {}, onSubtaskToggle: { _ in }
         )
     }

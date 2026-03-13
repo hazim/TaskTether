@@ -271,7 +271,7 @@ struct MainContainerView: View {
     }
 
     private func renameTask(_ id: String, _ newTitle: String) {
-        syncEngine.renameTask(id: id, newTitle: newTitle)
+        syncEngine.commitRename(id: id, newTitle: newTitle)
     }
 
     private func moveTask(fromId: String, toId: String) {

@@ -56,6 +56,11 @@ class SyncEngine: ObservableObject {
     // Prevent overlapping sync cycles.
     private var isSyncing = false
 
+    // IDs of tasks added locally via addTask() that haven't yet completed
+    // their platform write. The diff ignores these so they are never
+    // double-written while the remindersId stamp is in flight.
+    private var pendingLocalIds: Set<String> = []
+
     // MARK: - Init
 
     init(
@@ -115,7 +120,13 @@ class SyncEngine: ObservableObject {
     private func sync() async {
         guard !isSyncing,
               authManager.isAuthenticated,
-              remindersManager.isAuthorised else { return }
+              remindersManager.isAuthorised,
+              googleTasksManager.isConnected else {
+            // One or both platforms not ready — skip cycle entirely.
+            // Never run the diff with a partial dataset.
+            if state == .syncing { state = .idle }
+            return
+        }
 
         isSyncing = true
         state = .syncing
@@ -234,6 +245,8 @@ class SyncEngine: ObservableObject {
 
         // Additions and updates
         for task in merged {
+            // Skip tasks whose platform write is already in flight
+            guard !pendingLocalIds.contains(task.id) else { continue }
             let prev = previous.first(where: { $0.id == task.id })
 
             // Needs to exist in Reminders
@@ -268,13 +281,25 @@ class SyncEngine: ObservableObject {
     // MARK: - Apply Diff
 
     private func applyDiff(_ diff: SyncDiff) async {
-        // Reminders writes
+        // Safety valve — never apply deletions if Google Tasks returned zero
+        // tasks and Reminders also has tasks. An empty fetch is almost certainly
+        // a network/auth failure, not the user deleting everything.
+        let googleFetchedSomething = !diff.addToGoogle.isEmpty
+            || !diff.updateInGoogle.isEmpty
+            || diff.deleteFromGoogle.isEmpty  // if nothing to delete from Google, it returned data
+
+        // Reminders writes — stamp returned ID back onto local task to prevent
+        // duplicate creation on the next sync cycle.
         for task in diff.addToReminders {
-            remindersManager.createTask(
+            let remindersId = remindersManager.createTask(
                 title:   task.title,
                 dueDate: task.dueDate,
                 notes:   task.notes
             )
+            if let remindersId,
+               let idx = await MainActor.run(body: { tasks.firstIndex(where: { $0.id == task.id }) }) {
+                await MainActor.run { tasks[idx].remindersId = remindersId }
+            }
         }
         for task in diff.updateInReminders {
             guard let remindersId = task.remindersId,
@@ -287,18 +312,32 @@ class SyncEngine: ObservableObject {
                 dueDate:     task.dueDate
             )
         }
-        for remindersId in diff.deleteFromReminders {
-            guard let reminder = remindersManager.fetchTask(by: remindersId) else { continue }
-            remindersManager.deleteTask(reminder)
+        if googleFetchedSomething {
+            for remindersId in diff.deleteFromReminders {
+                guard let reminder = remindersManager.fetchTask(by: remindersId) else { continue }
+                remindersManager.deleteTask(reminder)
+            }
+        } else {
+            print("SyncEngine: skipping \(diff.deleteFromReminders.count) Reminders deletion(s) — Google Tasks fetch may have failed")
         }
 
-        // Google Tasks writes
+        // Google Tasks writes — stamp returned ID back to prevent duplicate creation
         for task in diff.addToGoogle {
-            googleTasksManager.createTask(
-                title:   task.title,
-                notes:   task.notes,
-                dueDate: task.dueDate
-            )
+            await withCheckedContinuation { continuation in
+                googleTasksManager.createTask(
+                    title:   task.title,
+                    notes:   task.notes,
+                    dueDate: task.dueDate
+                ) { googleId in
+                    continuation.resume()
+                    guard let googleId else { return }
+                    Task { @MainActor in
+                        if let idx = self.tasks.firstIndex(where: { $0.id == task.id }) {
+                            self.tasks[idx].googleTasksId = googleId
+                        }
+                    }
+                }
+            }
         }
         for task in diff.updateInGoogle {
             guard let googleId = task.googleTasksId else { continue }
@@ -310,8 +349,10 @@ class SyncEngine: ObservableObject {
                 dueDate:     task.dueDate
             )
         }
-        for googleId in diff.deleteFromGoogle {
-            googleTasksManager.deleteTask(taskId: googleId)
+        if googleFetchedSomething {
+            for googleId in diff.deleteFromGoogle {
+                googleTasksManager.deleteTask(taskId: googleId)
+            }
         }
     }
 
@@ -334,6 +375,7 @@ class SyncEngine: ObservableObject {
             let insertAt = tasks.firstIndex(where: { $0.isCompleted }) ?? tasks.count
             tasks.insert(task, at: insertAt)
         }
+        syncSnapshot()
         writeTask(task)
     }
 
@@ -341,6 +383,7 @@ class SyncEngine: ObservableObject {
     func deleteTask(id: String) {
         guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
         let task = tasks.remove(at: idx)
+        syncSnapshot()
         Task.detached { [weak self] in
             guard let self else { return }
             if let remindersId = task.remindersId,
@@ -353,17 +396,42 @@ class SyncEngine: ObservableObject {
         }
     }
 
+    // Debounce work items keyed by task ID — avoids writing on every keystroke.
+    private var renameDebounce: [String: DispatchWorkItem] = [:]
+
+    // Called on each keystroke — debounced, only writes 0.5s after typing stops.
     @MainActor
     func renameTask(id: String, newTitle: String) {
         guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
         tasks[idx].title        = newTitle
         tasks[idx].lastModified = Date()
+        let task = tasks[idx]
+
+        renameDebounce[id]?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.writeTask(task)
+            self?.renameDebounce.removeValue(forKey: id)
+        }
+        renameDebounce[id] = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: item)
+    }
+
+    // Called on commit (Enter/blur) — cancels any pending debounce and writes immediately.
+    // This prevents the debounce write and the commit write from both firing.
+    @MainActor
+    func commitRename(id: String, newTitle: String) {
+        renameDebounce[id]?.cancel()
+        renameDebounce.removeValue(forKey: id)
+        guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
+        tasks[idx].title        = newTitle
+        tasks[idx].lastModified = Date()
+        syncSnapshot()
         writeTask(tasks[idx])
     }
 
     @MainActor
     func addTask(title: String) {
-        var task = TetherTask(
+        let task = TetherTask(
             id:            UUID().uuidString,
             remindersId:   nil,
             googleTasksId: nil,
@@ -377,10 +445,51 @@ class SyncEngine: ObservableObject {
         )
         let insertAt = tasks.firstIndex(where: { $0.isCompleted }) ?? tasks.count
         tasks.insert(task, at: insertAt)
-        Task.detached { [weak self] in
+
+        // Write to both platforms and immediately stamp the local task with the
+        // returned IDs — this prevents the next sync cycle seeing nil IDs and
+        // creating duplicates.
+        let taskId = task.id
+        pendingLocalIds.insert(taskId)
+
+        Task { @MainActor [weak self] in
             guard let self else { return }
-            remindersManager.createTask(title: task.title, dueDate: task.dueDate, notes: task.notes)
-            googleTasksManager.createTask(title: task.title, notes: task.notes, dueDate: task.dueDate)
+
+            // Reminders — synchronous on background thread, returns identifier
+            let remindersId = await Task.detached {
+                self.remindersManager.createTask(
+                    title:   task.title,
+                    dueDate: task.dueDate,
+                    notes:   task.notes
+                )
+            }.value
+
+            // Stamp remindersId immediately
+            if let remindersId,
+               let idx = tasks.firstIndex(where: { $0.id == taskId }) {
+                tasks[idx].remindersId = remindersId
+            }
+
+            // Clear pending — diff may now safely see this task
+            pendingLocalIds.remove(taskId)
+
+            // Google Tasks — stamp ID immediately on return
+            await withCheckedContinuation { continuation in
+                self.googleTasksManager.createTask(
+                    title:      task.title,
+                    notes:      task.notes,
+                    dueDate:    task.dueDate
+                ) { googleId in
+                    continuation.resume()
+                    guard let googleId else { return }
+                    Task { @MainActor in
+                        if let idx = self.tasks.firstIndex(where: { $0.id == taskId }) {
+                            self.tasks[idx].googleTasksId = googleId
+                            self.syncSnapshot()
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -393,6 +502,7 @@ class SyncEngine: ObservableObject {
         tasks[idx].lastModified = Date()
         let task = tasks.remove(at: idx)
         // Remove from today's view — task is still in the engine but not due today
+        syncSnapshot()
         writeTask(task)
     }
 
@@ -401,6 +511,13 @@ class SyncEngine: ObservableObject {
         // Subtask model lives in TetherTaskItem (display layer) for now.
         // Full subtask sync wired when TetherTask gains subtask support.
         // No-op at engine level — handled locally in ContentView.
+    }
+
+    // Keeps previousSnapshot in sync after any local mutation so the next
+    // diff cycle sees no delta and doesn't double-write.
+    @MainActor
+    private func syncSnapshot() {
+        previousSnapshot = tasks
     }
 
     // Writes a single task to both platforms in the background.
