@@ -3,6 +3,7 @@
 //  TaskTether
 //
 //  Created by Hazim Sami on 12/03/2026.
+//  Updated: 13/03/2026 · 15:18
 //
 
 import SwiftUI
@@ -108,26 +109,41 @@ struct SparklineView: View {
                 }
             }
             .frame(
-                width:  DesignTokens.sparklineWidth,
-                height: DesignTokens.sparklineHeight
+                maxWidth: .infinity,
+                minHeight: DesignTokens.sparklineHeight
             )
 
-            // Day labels — S M T W T F S, rolling from today
-            HStack(spacing: 0) {
-                ForEach(Array(dayLabels().enumerated()), id: \.offset) { index, label in
-                    let isToday = index == 6
-                    Text(label)
-                        .font(.system(size: 8, weight: isToday ? .medium : .regular))
+            // Day labels — extracted to labelRow() to avoid Swift type-checker timeout
+            labelRow()
+        }
+    }
+
+    // MARK: - Label Row
+    // Extracted from body to avoid "expression too complex" compiler error.
+    // Uses GeometryReader so each label x-position mirrors the Canvas dot formula exactly.
+    @ViewBuilder
+    private func labelRow() -> some View {
+        GeometryReader { geo in
+            let w      = geo.size.width
+            let n      = scores.count
+            let labels = dayLabels()
+            ZStack(alignment: .topLeading) {
+                ForEach(0..<n, id: \.self) { i in
+                    let xPos    = pad + CGFloat(i) / CGFloat(n - 1) * (w - pad * 2)
+                    let isToday = (i == n - 1)
+                    Text(labels[i])
+                        .font(.system(size: 8, weight: isToday ? .semibold : .regular))
                         .foregroundStyle(
                             isToday
                                 ? themeManager.sparkline.opacity(0.9)
                                 : themeManager.textTertiary
                         )
-                        .frame(maxWidth: .infinity)
+                        .position(x: xPos, y: 6)
                 }
             }
-            .frame(width: DesignTokens.sparklineWidth)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: 12)
     }
 
     // MARK: - Day Labels

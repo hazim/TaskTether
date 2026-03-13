@@ -7,6 +7,16 @@
     "%" : {
 
     },
+    "%@ %@%lld%% vs yesterday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@%3$lld%% vs yesterday"
+          }
+        }
+      }
+    },
     "%lld" : {
 
     },
@@ -327,6 +337,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sync Now"
+          }
+        }
+      }
+    },
+    "sync.button.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing…"
           }
         }
       }
