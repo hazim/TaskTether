@@ -16,8 +16,10 @@ Most sync solutions either require a cloud middleman, charge a subscription, or 
 
 - **Two-way sync** — changes in either app reflect in the other
 - **Conflict resolution** — most recently modified version wins
-- **Runs on boot** — starts automatically, no manual intervention
-- **Lightweight** — minimal CPU and memory usage
+- **Menu bar app** — one click to open, always available
+- **Today view** — see, complete, and manage today's tasks without leaving the menu bar
+- **Productivity tracking** — daily score, yesterday's comparison, 7-day sparkline
+- **Theming** — four built-in themes (Sand, Midnight, Dusk, Prolis) with custom JSON theme support
 - **Private** — your tasks never touch a third-party server
 - **macOS 12+** — supports Monterey and later, including older hardware
 
@@ -32,15 +34,16 @@ Apple Reminders  ◄──────────────►  Google Tasks
                  (runs locally)
 ```
 
-TaskTether runs as a background service on your Mac. Every few minutes it compares your Reminders and Google Tasks lists, detects differences, and syncs changes in both directions using Apple's native EventKit framework and the Google Tasks API.
+TaskTether runs as a menu bar app on your Mac. On a configurable interval it compares your Reminders and Google Tasks lists, detects differences, and syncs changes in both directions using Apple's native EventKit framework and the Google Tasks API.
 
 ---
 
 ## Requirements
 
 - macOS 12 (Monterey) or later
+- macOS 26 (Tahoe) recommended for Liquid Glass effects
 - A Google account with Google Tasks
-- Xcode (for building from source)
+- Xcode 16+ (for building from source)
 
 ---
 
@@ -50,14 +53,31 @@ TaskTether runs as a background service on your Mac. Every few minutes it compar
 
 ---
 
+## Build Status
+
+| Group | Status |
+|---|---|
+| 0 — Foundation | ✅ Complete |
+| 1 — Static UI Shell | ✅ Complete |
+| 2 — Settings Panel | 🔜 Next |
+| 3 — Sync Engine | ⬜ Planned |
+| 4 — Live Data | ⬜ Planned |
+| 5 — Polish & Distribution | ⬜ Planned |
+
+---
+
 ## Roadmap
 
+- [x] Menu bar app shell
+- [x] Compact / Expanded / Today panel views
+- [x] 7-day productivity sparkline
+- [x] Task list with subtasks, completion, hover actions
+- [x] Theme system (4 built-in themes + custom JSON)
+- [ ] Settings panel — theme picker, sync interval, sign out
 - [ ] Core two-way sync engine
 - [ ] Conflict resolution (last-modified wins)
-- [ ] Deletion handling
-- [ ] launchd integration (auto-start on boot)
-- [ ] Menu bar status indicator
-- [ ] Selective list sync
+- [ ] Live Reminders + Google Tasks data
+- [ ] Drag-to-reorder tasks
 - [ ] First public release
 
 ---
