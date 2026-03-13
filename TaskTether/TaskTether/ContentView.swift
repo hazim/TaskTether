@@ -585,12 +585,17 @@ private struct SyncButtonRow: View {
     var body: some View {
         Button(action: onSyncTapped) {
             HStack(spacing: 6) {
-                if isSyncing {
-                    ProgressView().scaleEffect(0.7).tint(.white)
-                } else {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 12, weight: .medium))
+                // Fixed frame keeps both states the same size so the button
+                // never changes height when isSyncing toggles.
+                ZStack {
+                    if isSyncing {
+                        ProgressView().scaleEffect(0.7).tint(.white)
+                    } else {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 12, weight: .medium))
+                    }
                 }
+                .frame(width: 14, height: 14)
                 Text(String(localized: isSyncing ? "sync.button.loading" : "sync.button"))
                     .font(.system(size: 12, weight: .medium))
             }
