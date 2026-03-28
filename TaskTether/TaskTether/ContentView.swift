@@ -202,14 +202,14 @@ struct MainContainerView: View {
             if showInsightPanel {
                 shellDivider
                 InsightPanelView(
-                    todayScore:         74,
-                    todayCompleted:     6,
-                    todayTotal:         8,
-                    yesterdayScore:     62,
-                    yesterdayCompleted: 5,
-                    yesterdayTotal:     8,
-                    deltaValue:         12,
-                    sparklineScores:    [48, 55, 62, 58, 70, 62, 74]
+                    todayScore:         syncEngine.statsStore.todayScore,
+                    todayCompleted:     syncEngine.statsStore.todayCompleted,
+                    todayTotal:         syncEngine.statsStore.todayTotal,
+                    yesterdayScore:     syncEngine.statsStore.yesterdayScore,
+                    yesterdayCompleted: syncEngine.statsStore.yesterdayCompleted,
+                    yesterdayTotal:     syncEngine.statsStore.yesterdayTotal,
+                    deltaValue:         syncEngine.statsStore.delta,
+                    weekPercentages:    syncEngine.statsStore.weekPercentages()
                 )
                 // No transition — instant height change is the only safe option in MenuBarExtra
             }
@@ -433,7 +433,7 @@ private struct InsightPanelView: View {
     let yesterdayCompleted: Int
     let yesterdayTotal:     Int
     let deltaValue:         Int
-    let sparklineScores:    [Double]
+    let weekPercentages:    [Int?]
 
     private var deltaPositive: Bool { deltaValue >= 0 }
 
@@ -461,9 +461,11 @@ private struct InsightPanelView: View {
                     .tracking(0.10 * 9.5)
                     .foregroundStyle(themeManager.textTertiary)
                 Spacer()
-                Text("\(deltaPositive ? "↑" : "↓") \(deltaPositive ? "+" : "")\(deltaValue)% vs yesterday")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(deltaPositive ? themeManager.success : themeManager.danger)
+                if yesterdayTotal > 0 {
+                    Text("\(deltaPositive ? "↑" : "↓") \(deltaPositive ? "+" : "")\(deltaValue)% vs yesterday")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(deltaPositive ? themeManager.success : themeManager.danger)
+                }
             }
             .padding(.bottom, 8)
 
@@ -499,28 +501,33 @@ private struct InsightPanelView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 8)
 
-            HStack(alignment: .bottom, spacing: 8) {
-                HStack(alignment: .bottom, spacing: 2) {
-                    Text("\(yesterdayScore)")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(themeManager.accent.opacity(0.5))
-                        .kerning(-0.05 * 30)
-                        .monospacedDigit()
-                    Text("%")
-                        .font(.system(size: 14, weight: .light).italic())
-                        .foregroundStyle(themeManager.accent.opacity(0.4))
+            if yesterdayTotal > 0 {
+                HStack(alignment: .bottom, spacing: 8) {
+                    HStack(alignment: .bottom, spacing: 2) {
+                        Text("\(yesterdayScore)")
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(themeManager.accent.opacity(0.5))
+                            .kerning(-0.05 * 30)
+                            .monospacedDigit()
+                        Text("%")
+                            .font(.system(size: 14, weight: .light).italic())
+                            .foregroundStyle(themeManager.accent.opacity(0.4))
+                            .padding(.bottom, 3)
+                    }
+                    Spacer()
+                    Text("\(yesterdayCompleted) / \(yesterdayTotal) \(String(localized: "expanded.tasks.done"))")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(themeManager.textTertiary.opacity(0.55))
+                        .multilineTextAlignment(.trailing)
                         .padding(.bottom, 3)
                 }
-                Spacer()
-                Text("\(yesterdayCompleted) / \(yesterdayTotal) \(String(localized: "expanded.tasks.done"))")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(themeManager.textTertiary.opacity(0.55))
-                    .multilineTextAlignment(.trailing)
-                    .padding(.bottom, 3)
+            } else {
+                Text("—")
+                    .font(.system(size: 20, weight: .light, design: .monospaced))
+                    .foregroundStyle(themeManager.textTertiary.opacity(0.4))
             }
         }
     }
-
     private var weekSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(String(localized: "expanded.label.last7days"))
@@ -530,8 +537,8 @@ private struct InsightPanelView: View {
                 .foregroundStyle(themeManager.textTertiary)
                 .padding(.top, 10)
 
-            SparklineView(scores: sparklineScores)
-                .frame(maxWidth: .infinity, minHeight: 56)
+            BarChartView(percentages: weekPercentages)
+                .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
         }
     }
 

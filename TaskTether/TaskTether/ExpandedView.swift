@@ -45,8 +45,8 @@ struct ExpandedView: View {
     // Delta direction and value — e.g. "+12% vs yesterday"
     let deltaValue:        Int   // positive = up, negative = down, 0 = no change
 
-    // 7 scores oldest first, today last
-    let sparklineScores:   [Double]
+    // 7 completion percentages oldest→newest, nil = no data
+    let weekPercentages:   [Int?]
 
     let onSyncTapped:      () -> Void
 
@@ -132,7 +132,7 @@ struct ExpandedView: View {
                     .frame(height: 1)
                     .padding(.vertical, DesignTokens.paddingXs)
 
-                // 7-DAY ECG
+                // 7-DAY BAR CHART
                 VStack(alignment: .leading, spacing: DesignTokens.spacingXs) {
                     Text(String(localized: "expanded.label.last7days"))
                         .font(.system(size: 9.5, weight: .medium, design: .monospaced))
@@ -140,8 +140,8 @@ struct ExpandedView: View {
                         .textCase(.uppercase)
                         .kerning(1.0)
 
-                    SparklineView(scores: sparklineScores)
-                        .frame(maxWidth: .infinity)
+                    BarChartView(percentages: weekPercentages)
+                        .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
                 }
                 .padding(.top, DesignTokens.paddingXs)
 
@@ -302,7 +302,7 @@ private struct ProductivitySection: View {
         yesterdayCompleted: 5,
         yesterdayTotal:     8,
         deltaValue:         12,
-        sparklineScores:    [48, 55, 62, 58, 70, 62, 74],
+        weekPercentages:    [100, nil, 0, 60, nil, 45, 74],
         onSyncTapped:       {}
     )
     .frame(width: DesignTokens.popoverWidth)

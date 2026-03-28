@@ -34,7 +34,8 @@ class SyncEngine: ObservableObject {
     private let googleTasksManager: GoogleTasksManager
     private let authManager:        GoogleAuthManager
     private let themeManager:       ThemeManager
-    let idStore:                    IDStore = IDStore()
+    let idStore:                    IDStore    = IDStore()
+    let statsStore:                 StatsStore = StatsStore()
 
     // MARK: - Internal State
 
@@ -166,6 +167,13 @@ class SyncEngine: ObservableObject {
             previousSnapshot = tasks
             lastSyncAt       = Date()
             state            = .idle
+
+            // Record today's stats — done after sort so todayTasks is accurate
+            let todayAll = todayTasks
+            statsStore.record(
+                total:     todayAll.count,
+                completed: todayAll.filter { $0.isCompleted }.count
+            )
 
         } catch {
             state = .error(error.localizedDescription)
