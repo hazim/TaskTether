@@ -278,7 +278,11 @@ private struct ProductivitySection: View {
     }
 
     private func deltaText(_ value: Int) -> String {
-        value > 0 ? "↑ +\(value)% vs yesterday" : "↓ \(value)% vs yesterday"
+        if value > 0 {
+            return String(format: String(localized: "expanded.delta.up"), value)
+        } else {
+            return String(format: String(localized: "expanded.delta.down"), value)
+        }
     }
 }
 

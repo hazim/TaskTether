@@ -129,7 +129,6 @@
     },
     "error.auth.token" : {
       "comment" : "Error shown when the OAuth token exchange with Google fails.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -153,7 +152,6 @@
     },
     "error.auth.url" : {
       "comment" : "Error shown when the Google OAuth URL cannot be constructed.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -177,7 +175,6 @@
     },
     "error.credentials" : {
       "comment" : "Error shown when GoogleCredentials.json cannot be loaded from the bundle.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -201,7 +198,6 @@
     },
     "error.reminders.createlist" : {
       "comment" : "Error shown when the TaskTether list cannot be created in Reminders. %@ is replaced with the system error description.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -225,7 +221,6 @@
     },
     "error.reminders.denied.v12" : {
       "comment" : "Error shown on macOS 12–13 (Monterey/Ventura) when Reminders access is denied. 'System Preferences' is the correct name on those versions.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -249,7 +244,6 @@
     },
     "error.reminders.denied.v14" : {
       "comment" : "Error shown on macOS 14+ (Sonoma and later) when Reminders access is denied. 'System Settings' is the correct name from macOS 13 onwards.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -273,7 +267,6 @@
     },
     "error.tasks.createlist" : {
       "comment" : "Error shown when the TaskTether list cannot be created in Google Tasks.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -297,7 +290,6 @@
     },
     "error.tasks.fetchlists" : {
       "comment" : "Error shown when the Google Tasks list fetch request fails or returns unexpected data.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -321,7 +313,6 @@
     },
     "error.tasks.notoken" : {
       "comment" : "Error shown internally when Google Tasks setup is attempted but no access token is available.",
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -339,6 +330,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nincs hozzáférési token"
+          }
+        }
+      }
+    },
+    "expanded.delta.down" : {
+      "comment" : "Delta label shown in the Expanded view when today's score is lower than yesterday's. %lld is the signed integer difference (will be negative, e.g. -12).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↓ %lld%% مقارنةً بالأمس"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↓ %lld%% vs yesterday"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↓ %lld%% tegnap képest"
+          }
+        }
+      }
+    },
+    "expanded.delta.up" : {
+      "comment" : "Delta label shown in the Expanded view when today's score is higher than yesterday's. %lld is the positive integer difference (e.g. 12).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↑ +%lld%% مقارنةً بالأمس"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↑ +%lld%% vs yesterday"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "↑ +%lld%% tegnap képest"
           }
         }
       }
@@ -457,9 +496,6 @@
           }
         }
       }
-    },
-    "Language changes take effect after restarting TaskTether." : {
-
     },
     "nav.compact" : {
       "extractionState" : "manual",
@@ -824,6 +860,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nyelv"
+          }
+        }
+      }
+    },
+    "settings.language.restart_hint" : {
+      "comment" : "Helper text shown below the language picker in Settings. Tells the user they must restart to apply the change.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصبح تغييرات اللغة سارية بعد إعادة تشغيل TaskTether."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language changes take effect after restarting TaskTether."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A nyelvi változtatások a TaskTether újraindítása után lépnek életbe."
           }
         }
       }

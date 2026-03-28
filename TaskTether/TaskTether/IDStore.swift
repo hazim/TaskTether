@@ -120,8 +120,10 @@ final class IDStore {
 
     // MARK: - Debug
 
+    #if DEBUG
     func dump() {
         print("IDStore refs (\(refs.count)): \(refs)")
         print("IDStore order (\(order.count)): \(order)")
     }
+    #endif
 }

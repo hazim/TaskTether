@@ -116,15 +116,16 @@ class ThemeManager: ObservableObject {
 
     // MARK: - UserDefaults Keys
 
-    private let lightThemeKey   = "tasktether_light_theme_id"
-    private let darkThemeKey    = "tasktether_dark_theme_id"
-    private let appearanceKey   = "tasktether_appearance_override"
-    private let syncIntervalKey = "tasktether_sync_interval"
+    private let lightThemeKey    = "tasktether_light_theme_id"
+    private let darkThemeKey     = "tasktether_dark_theme_id"
+    private let appearanceKey    = "tasktether_appearance_override"
+    private let syncIntervalKey  = "tasktether_sync_interval"
+    private let customThemesKey  = "tasktether_custom_themes"
 
     // MARK: - Init
 
     init() {
-        let loaded = ThemeManager.loadThemes()
+        let loaded = ThemeManager.loadThemes() + ThemeManager.loadCustomThemesFromDefaults()
 
         // Restore slots from UserDefaults, falling back to sensible defaults.
         let savedLight    = UserDefaults.standard.string(forKey: "tasktether_light_theme_id")
@@ -251,6 +252,7 @@ class ThemeManager: ObservableObject {
             if !availableThemes.contains(where: { $0.id == theme.id }) {
                 availableThemes.append(theme)
             }
+            saveCustomThemesToDefaults()
             if theme.appearance == "dark" {
                 darkThemeId = theme.id
             } else {
@@ -262,20 +264,42 @@ class ThemeManager: ObservableObject {
         }
     }
 
+    private func saveCustomThemesToDefaults() {
+        let bundleIds = Set(ThemeManager.loadThemes().map { $0.id })
+        let custom    = availableThemes.filter { !bundleIds.contains($0.id) }
+        if let data = try? JSONEncoder().encode(custom) {
+            UserDefaults.standard.set(data, forKey: customThemesKey)
+        }
+    }
+
+    private static func loadCustomThemesFromDefaults() -> [Theme] {
+        guard let data   = UserDefaults.standard.data(forKey: "tasktether_custom_themes"),
+              let themes = try? JSONDecoder().decode([Theme].self, from: data) else {
+            return []
+        }
+        return themes
+    }
+
     // MARK: - Load Themes from Bundle
 
     private static func loadThemes() -> [Theme] {
         guard let url = Bundle.main.url(forResource: "Themes", withExtension: "json") else {
+            #if DEBUG
             print("ThemeManager: Themes.json not found in bundle ❌")
+            #endif
             return []
         }
         do {
             let data = try Data(contentsOf: url)
             let file = try JSONDecoder().decode(ThemesFile.self, from: data)
+            #if DEBUG
             print("ThemeManager: Loaded \(file.themes.count) theme(s) ✅")
+            #endif
             return file.themes
         } catch {
+            #if DEBUG
             print("ThemeManager: Failed to decode Themes.json — \(error) ❌")
+            #endif
             return []
         }
     }

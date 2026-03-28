@@ -30,13 +30,13 @@
         "backgroundSecondary": "#12122A",
         "surface":             "#222240",
         "surface2":            "#2A2A50",
-        "border":              "#2E2E50",
+        "border":              "#363660",
         "accent":              "#4A90D9",
         "accentForeground":    "#FFFFFF",
         "textPrimary":         "#E8E8F0",
         "textSecondary":       "#9090A8",
         "textTertiary":        "#5A5A78",
-        "success":             "#1DB954",
+        "success":             "#3DD68C",
         "warning":             "#FF8C00",
         "danger":              "#FF3B30",
         "sparkline":           "#4A90D9"
@@ -85,29 +85,45 @@
       }
     },
     {
-      "id": "indocard_v2",
-      "name": "Indo Card (Improved)",
+      "id": "ember",
+      "name": "Ember",
+      "appearance": "dark",
+      "colors": {
+        "backgroundPrimary":   "#1C1510",
+        "backgroundSecondary": "#140E0A",
+        "surface":             "#251A12",
+        "surface2":            "#2F2018",
+        "border":              "#3D2A1A",
+        "accent":              "#E8832A",
+        "accentForeground":    "#FFFFFF",
+        "textPrimary":         "#F2E8DC",
+        "textSecondary":       "#A88C70",
+        "textTertiary":        "#6A5540",
+        "success":             "#7EC87A",
+        "warning":             "#FFB340",
+        "danger":              "#FF6B6B",
+        "sparkline":           "#E8832A"
+      }
+    },
+    {
+      "id": "glacier",
+      "name": "Glacier",
       "appearance": "light",
       "colors": {
-        "backgroundPrimary":   "#F3E7F7",
-        "backgroundSecondary": "#E8D7F0",
-
-        "surface":             "#FFFFFF",
-        "surface2":            "#F4F0F8",
-        "border":              "#C7B8D6",
-
-        "accent":              "#6AD58A",
-        "accentForeground":    "#0A0A0A",
-
-        "textPrimary":         "#1A1A1A",
-        "textSecondary":       "#4A4A4A",
-        "textTertiary":        "#7A7A7A",
-
-        "success":             "#1DB954",
-        "warning":             "#FF8C00",
-        "danger":              "#FF3B30",
-
-        "sparkline":           "#6AD58A"
+        "backgroundPrimary":   "#EFF4F8",
+        "backgroundSecondary": "#E2EBF2",
+        "surface":             "#F7FAFC",
+        "surface2":            "#EBF1F7",
+        "border":              "#C8D8E8",
+        "accent":              "#2E8B9A",
+        "accentForeground":    "#FFFFFF",
+        "textPrimary":         "#0F2030",
+        "textSecondary":       "#4A6580",
+        "textTertiary":        "#8AAAC0",
+        "success":             "#2E9E5A",
+        "warning":             "#F59E0B",
+        "danger":              "#DC4040",
+        "sparkline":           "#2E8B9A"
       }
     },
     {

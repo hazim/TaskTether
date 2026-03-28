@@ -45,7 +45,7 @@ class RemindersManager: ObservableObject {
                         self.createTaskTetherListIfNeeded()
                     } else {
                         self.isAuthorised = false
-                        self.errorMessage = "Reminders access denied. Please enable in System Settings → Privacy → Reminders."
+                        self.errorMessage = String(localized: "error.reminders.denied.v14")
                     }
                 }
             }
@@ -57,7 +57,7 @@ class RemindersManager: ObservableObject {
                         self.createTaskTetherListIfNeeded()
                     } else {
                         self.isAuthorised = false
-                        self.errorMessage = "Reminders access denied. Please enable in System Preferences → Security & Privacy → Reminders."
+                        self.errorMessage = String(localized: "error.reminders.denied.v12")
                     }
                 }
             }
@@ -71,7 +71,9 @@ class RemindersManager: ObservableObject {
         
         // Check if TaskTether list already exists
         if calendars.first(where: { $0.title == listName }) != nil {
+            #if DEBUG
             print("TaskTether list already exists in Reminders")
+            #endif
             return
         }
         
@@ -82,10 +84,12 @@ class RemindersManager: ObservableObject {
         
         do {
             try store.saveCalendar(newList, commit: true)
+            #if DEBUG
             print("Created TaskTether list in Reminders")
+            #endif
         } catch {
             DispatchQueue.main.async {
-                self.errorMessage = "Could not create TaskTether list: \(error.localizedDescription)"
+                self.errorMessage = String(format: String(localized: "error.reminders.createlist"), error.localizedDescription)
             }
         }
     }
@@ -184,9 +188,13 @@ class RemindersManager: ObservableObject {
 
         do {
             try store.save(reminder, commit: true)
+            #if DEBUG
             print("Updated task in Reminders: \(title)")
+            #endif
         } catch {
+            #if DEBUG
             print("Failed to update task: \(error)")
+            #endif
         }
     }
 
@@ -226,10 +234,14 @@ class RemindersManager: ObservableObject {
 
         do {
             try store.save(reminder, commit: true)
+            #if DEBUG
             print("Created task in Reminders: \(title)")
+            #endif
             return reminder.calendarItemIdentifier
         } catch {
+            #if DEBUG
             print("Failed to create task: \(error)")
+            #endif
             return nil
         }
     }
@@ -238,18 +250,26 @@ class RemindersManager: ObservableObject {
         reminder.isCompleted = true
         do {
             try store.save(reminder, commit: true)
+            #if DEBUG
             print("Completed task: \(reminder.title ?? "")")
+            #endif
         } catch {
+            #if DEBUG
             print("Failed to complete task: \(error)")
+            #endif
         }
     }
     
     func deleteTask(_ reminder: EKReminder) {
         do {
             try store.remove(reminder, commit: true)
+            #if DEBUG
             print("Deleted task: \(reminder.title ?? "")")
+            #endif
         } catch {
+            #if DEBUG
             print("Failed to delete task: \(error)")
+            #endif
         }
     }
 }

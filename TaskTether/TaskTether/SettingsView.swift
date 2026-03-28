@@ -36,6 +36,7 @@ struct SettingsView: View {
 private struct GeneralSettingsTab: View {
 
     @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var authManager:  GoogleAuthManager
 
     @State private var themeLoadError: String?
     @State private var showingThemeError = false
@@ -120,7 +121,7 @@ private struct GeneralSettingsTab: View {
                         UserDefaults.standard.synchronize()
                     }
 
-                    Text("Language changes take effect after restarting TaskTether.")
+                    Text(String(localized: "settings.language.restart_hint"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -163,7 +164,7 @@ private struct GeneralSettingsTab: View {
                             .foregroundStyle(.secondary)
                         Spacer()
                         Button(String(localized: "settings.signout"), role: .destructive) {
-                            // Wired in Group 3 — GoogleAuthManager.signOut()
+                            authManager.signOut()
                         }
                     }
                 }
@@ -176,7 +177,7 @@ private struct GeneralSettingsTab: View {
                             .foregroundStyle(.secondary)
                         Spacer()
                         Button {
-                            if let url = URL(string: "https://ko-fi.com") {
+                            if let url = URL(string: "https://ko-fi.com/hazims") {
                                 NSWorkspace.shared.open(url)
                             }
                         } label: {
@@ -189,6 +190,7 @@ private struct GeneralSettingsTab: View {
                 }
             }
         .formStyle(.grouped)
+        .modifier(AlwaysScrollIndicators())
         .padding(.vertical, 8)
         .alert(
             String(localized: "settings.customtheme.error.title"),
@@ -251,6 +253,18 @@ private struct ThemeSwatchRow: View {
         ("Text",    themeManager.textPrimary),
         ("Spark",   themeManager.sparkline)
     ]}
+}
+
+// MARK: - AlwaysScrollIndicators
+
+private struct AlwaysScrollIndicators: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 14, *) {
+            content.scrollIndicatorsFlash(onAppear: true)
+        } else {
+            content
+        }
+    }
 }
 
 // MARK: - Preview

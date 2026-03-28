@@ -82,6 +82,14 @@ final class StatsStore {
         all = current
     }
 
+    // Removes today's entry — called when todayTasks is empty so stale
+    // data from a previous session doesn't show a false completion score.
+    func clearToday() {
+        var current = all
+        current.removeValue(forKey: dayKey(Date()))
+        all = current
+    }
+
     // MARK: - Computed Stats
 
     var todayStats: DayStats? { stats(for: Date()) }

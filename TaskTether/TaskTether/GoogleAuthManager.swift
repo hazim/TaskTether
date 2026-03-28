@@ -39,7 +39,7 @@ class GoogleAuthManager: ObservableObject {
               let installed = json["installed"] as? [String: Any],
               let id = installed["client_id"] as? String,
               let secret = installed["client_secret"] as? String else {
-            errorMessage = "Could not load credentials"
+            errorMessage = String(localized: "error.credentials")
             return
         }
         clientId = id
@@ -69,7 +69,7 @@ class GoogleAuthManager: ObservableObject {
         ]
 
         guard let authURL = components.url else {
-            errorMessage = "Could not build auth URL"
+            errorMessage = String(localized: "error.auth.url")
             isAuthenticating = false
             server.stop()
             return
@@ -102,7 +102,7 @@ class GoogleAuthManager: ObservableObject {
                   let accessToken = json["access_token"] as? String else {
                 DispatchQueue.main.async {
                     self.isAuthenticating = false
-                    self.errorMessage = "Token exchange failed"
+                    self.errorMessage = String(localized: "error.auth.token")
                 }
                 return
             }
@@ -192,15 +192,21 @@ class GoogleAuthManager: ObservableObject {
         if refreshToken != nil {
             // Refresh token present — proactively refresh the access token on
             // launch so we never start with an expired token.
+            #if DEBUG
             print("GoogleAuthManager: refreshing access token on launch...")
+            #endif
             refreshAccessToken { [weak self] success in
                 DispatchQueue.main.async {
                     if success {
                         self?.isAuthenticated = true
+                        #if DEBUG
                         print("GoogleAuthManager: token refreshed ✅")
+                        #endif
                     } else {
                         // Refresh failed (revoked) — clear and require re-auth.
+                        #if DEBUG
                         print("GoogleAuthManager: refresh failed — clearing tokens, re-auth required")
+                        #endif
                         self?.signOut()
                     }
                 }
@@ -208,7 +214,9 @@ class GoogleAuthManager: ObservableObject {
         } else {
             // Access token with no refresh token — almost certainly stale.
             // Clear and require the user to connect again.
+            #if DEBUG
             print("GoogleAuthManager: stale token with no refresh — clearing, re-auth required")
+            #endif
             signOut()
         }
     }

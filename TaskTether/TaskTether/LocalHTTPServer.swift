@@ -20,7 +20,9 @@ class LocalHTTPServer {
         do {
             listener = try NWListener(using: .tcp, on: NWEndpoint.Port(rawValue: port)!)
         } catch {
+            #if DEBUG
             print("Failed to create listener: \(error)")
+            #endif
             return
         }
         
@@ -30,13 +32,17 @@ class LocalHTTPServer {
         }
         
         listener?.start(queue: .global())
+        #if DEBUG
         print("Local HTTP server started on port \(port)")
+        #endif
     }
     
     func stop() {
         listener?.cancel()
         listener = nil
+        #if DEBUG
         print("Local HTTP server stopped")
+        #endif
     }
     
     private func handleConnection(_ connection: NWConnection) {

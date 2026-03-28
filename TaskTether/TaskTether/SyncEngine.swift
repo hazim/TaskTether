@@ -185,12 +185,15 @@ class SyncEngine: ObservableObject {
             lastSyncAt       = Date()
             state            = .idle
 
-            // Record today's stats — done after sort so todayTasks is accurate
+            // Record today's stats — done after sort so todayTasks is accurate.
+            // Clear today's entry when there are no tasks so stale data from a
+            // previous session doesn't show a false score.
             let todayAll = todayTasks
             statsStore.record(
                 total:     todayAll.count,
                 completed: todayAll.filter { $0.isCompleted }.count
             )
+            if todayAll.isEmpty { statsStore.clearToday() }
 
         } catch {
             state = .error(error.localizedDescription)
@@ -265,7 +268,9 @@ class SyncEngine: ObservableObject {
         let googleSuspicious = googleTasks.isEmpty && prevHadTasks && consecutiveGoogleZero < 2
 
         if googleSuspicious {
+            #if DEBUG
             print("SyncEngine: Google returned 0 tasks (cycle \(consecutiveGoogleZero)/2) — skipping deletions")
+            #endif
         }
 
         // Track which Google IDs are handled in the Reminders loop
@@ -581,6 +586,15 @@ class SyncEngine: ObservableObject {
         tasks            = sortedByOrder(tasks)
         previousSnapshot = tasks
 
+        // Update stats immediately so InsightPanel reflects the toggle without
+        // waiting for the next sync cycle.
+        let todayAllAfterToggle = todayTasks
+        statsStore.record(
+            total:     todayAllAfterToggle.count,
+            completed: todayAllAfterToggle.filter { $0.isCompleted }.count
+        )
+        if todayAllAfterToggle.isEmpty { statsStore.clearToday() }
+
         Task { @MainActor [weak self] in
             guard let self else { return }
             if let reminder = remindersManager.fetchTask(by: rid) {
@@ -670,6 +684,13 @@ class SyncEngine: ObservableObject {
         guard let idx = tasks.firstIndex(where: { $0.id == id }) else { return }
         let task = tasks.remove(at: idx)
         previousSnapshot = tasks
+
+        let todayAllAfterDelete = todayTasks
+        statsStore.record(
+            total:     todayAllAfterDelete.count,
+            completed: todayAllAfterDelete.filter { $0.isCompleted }.count
+        )
+        if todayAllAfterDelete.isEmpty { statsStore.clearToday() }
 
         Task { @MainActor [weak self] in
             guard let self else { return }

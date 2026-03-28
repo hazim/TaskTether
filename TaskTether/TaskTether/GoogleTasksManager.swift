@@ -36,8 +36,10 @@ class GoogleTasksManager: ObservableObject {
     
     private func findOrCreateTaskTetherList() {
         guard let token = authManager.getAccessToken() else {
+            #if DEBUG
             print("GoogleTasksManager: no access token found ❌")
-            errorMessage = "No access token"
+            #endif
+            errorMessage = String(localized: "error.tasks.notoken")
             isConnected = false
             return
         }
@@ -58,7 +60,7 @@ class GoogleTasksManager: ObservableObject {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let items = json["items"] as? [[String: Any]] else {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Could not fetch task lists"
+                    self.errorMessage = String(localized: "error.tasks.fetchlists")
                     self.isConnected = false
                 }
                 return
@@ -67,7 +69,9 @@ class GoogleTasksManager: ObservableObject {
             // Check if TaskTether list already exists
             if let existing = items.first(where: { $0["title"] as? String == self.listName }),
                let id = existing["id"] as? String {
+                #if DEBUG
                 print("TaskTether list already exists in Google Tasks: \(id)")
+                #endif
                 self.taskListId = id
                 DispatchQueue.main.async {
                     self.isConnected = true
@@ -99,13 +103,15 @@ class GoogleTasksManager: ObservableObject {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let id = json["id"] as? String else {
                 DispatchQueue.main.async {
-                    self.errorMessage = "Could not create TaskTether list"
+                    self.errorMessage = String(localized: "error.tasks.createlist")
                     self.isConnected = false
                 }
                 return
             }
             
+            #if DEBUG
             print("Created TaskTether list in Google Tasks: \(id)")
+            #endif
             self.taskListId = id
             DispatchQueue.main.async {
                 self.isConnected = true
@@ -176,7 +182,9 @@ class GoogleTasksManager: ObservableObject {
                 .sorted { (posMap[$0.id] ?? 999) < (posMap[$1.id] ?? 999) }
             let completed  = allTasks.filter { $0.isCompleted }
             let merged     = incomplete + completed
+            #if DEBUG
             print("GoogleTasksManager: fetched \(merged.count) task(s) (\(incomplete.count) active, \(completed.count) completed) ✅")
+            #endif
             completion(merged)
         }
     }
@@ -231,7 +239,9 @@ class GoogleTasksManager: ObservableObject {
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error {
+                #if DEBUG
                 print("GoogleTasksManager: createTask error — \(error.localizedDescription)")
+                #endif
                 completion?(nil)
                 return
             }
@@ -246,11 +256,15 @@ class GoogleTasksManager: ObservableObject {
             guard let data,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let id   = json["id"] as? String else {
+                #if DEBUG
                 print("GoogleTasksManager: createTask — unexpected response: \(String(data: data ?? Data(), encoding: .utf8) ?? "nil")")
+                #endif
                 completion?(nil)
                 return
             }
+            #if DEBUG
             print("Created task in Google Tasks: \(title) (id: \(id)) ✅")
+            #endif
             completion?(id)
         }.resume()
     }
@@ -266,7 +280,9 @@ class GoogleTasksManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["status": "completed"])
         
         URLSession.shared.dataTask(with: request) { _, _, _ in
+            #if DEBUG
             print("Completed task in Google Tasks: \(taskId)")
+            #endif
         }.resume()
     }
     
@@ -295,7 +311,9 @@ class GoogleTasksManager: ObservableObject {
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             if let error {
+                #if DEBUG
                 print("GoogleTasksManager: updateTask error — \(error.localizedDescription)")
+                #endif
                 return
             }
             if let http = response as? HTTPURLResponse {
@@ -304,9 +322,13 @@ class GoogleTasksManager: ObservableObject {
                         if success { self?.updateTask(taskId: taskId, title: title, notes: notes, isCompleted: isCompleted, dueDate: dueDate) }
                     }
                 } else if http.statusCode == 200 {
+                    #if DEBUG
                     print("Updated task in Google Tasks: \(title) ✅")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("GoogleTasksManager: updateTask HTTP \(http.statusCode) — \(String(data: data ?? Data(), encoding: .utf8) ?? "nil")")
+                    #endif
                 }
             }
         }.resume()
@@ -330,7 +352,9 @@ class GoogleTasksManager: ObservableObject {
 
         URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
             if let error {
+                #if DEBUG
                 print("GoogleTasksManager: moveTask error — \(error.localizedDescription)")
+                #endif
                 return
             }
             if let http = response as? HTTPURLResponse, http.statusCode == 401 {
@@ -351,7 +375,9 @@ class GoogleTasksManager: ObservableObject {
 
         URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
             if let error {
+                #if DEBUG
                 print("GoogleTasksManager: deleteTask error — \(error.localizedDescription)")
+                #endif
                 return
             }
             if let http = response as? HTTPURLResponse {
@@ -360,9 +386,13 @@ class GoogleTasksManager: ObservableObject {
                         if success { self?.deleteTask(taskId: taskId) }
                     }
                 } else if http.statusCode == 204 {
+                    #if DEBUG
                     print("Deleted task in Google Tasks: \(taskId) ✅")
+                    #endif
                 } else {
+                    #if DEBUG
                     print("GoogleTasksManager: deleteTask HTTP \(http.statusCode)")
+                    #endif
                 }
             }
         }.resume()

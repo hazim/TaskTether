@@ -63,8 +63,8 @@ struct BarChartView: View {
 
                     // Day label — always below bar area
                     Text(dayLabels[i])
-                        .font(.system(size: 8, weight: isToday ? .semibold : .regular,
-                                      design: .monospaced))
+                        .font(.system(size: 9, weight: isToday ? .semibold : .regular,
+                                      design: .default))
                         .foregroundStyle(isToday
                                          ? themeManager.accent
                                          : themeManager.textTertiary)

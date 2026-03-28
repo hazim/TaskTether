@@ -53,6 +53,7 @@ struct TaskTetherApp: App {
         Settings {
             SettingsView()
                 .environmentObject(themeManager)
+                .environmentObject(authManager)
         }
     }
 }

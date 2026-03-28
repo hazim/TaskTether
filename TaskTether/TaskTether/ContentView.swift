@@ -30,9 +30,42 @@ struct ContentView: View {
                 ConnectView(authManager: authManager)
             }
         }
+        .background(WindowBackgroundSetter(color: themeManager.backgroundPrimary))
         .onAppear {
             // Startup handled in MainContainerView.onAppear via SyncEngine.start()
         }
+    }
+}
+
+// MARK: - WindowBackgroundSetter
+// Sets the NSWindow background colour to match the active theme.
+// Uses viewDidMoveToWindow() so the window reference is guaranteed to exist.
+// Prevents the macOS default window background from showing as a thin
+// outline around the popover content.
+
+private struct WindowBackgroundSetter: NSViewRepresentable {
+    let color: Color
+
+    func makeNSView(context: Context) -> WindowBackgroundView {
+        let view = WindowBackgroundView()
+        view.themeColor = NSColor(color)
+        return view
+    }
+
+    func updateNSView(_ nsView: WindowBackgroundView, context: Context) {
+        nsView.themeColor = NSColor(color)
+        nsView.window?.backgroundColor = NSColor(color)
+    }
+}
+
+private class WindowBackgroundView: NSView {
+    var themeColor: NSColor = .black
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        window.backgroundColor = themeColor
+        window.isOpaque = true
     }
 }
 
