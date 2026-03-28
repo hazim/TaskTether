@@ -16,6 +16,18 @@ class RemindersManager: ObservableObject {
     
     private let store = EKEventStore()
     private let listName = "TaskTether"
+
+    // Always store dates as noon UTC so no timezone offset shifts the day.
+    // Hungary (UTC+1) local midnight = 23:00 prev day UTC without this fix.
+    private func noonUTC(for date: Date) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let comps = cal.dateComponents([.year, .month, .day], from: date)
+        return cal.date(from: DateComponents(
+            timeZone: TimeZone(identifier: "UTC"),
+            year: comps.year, month: comps.month, day: comps.day, hour: 12
+        )) ?? date
+    }
     
     // MARK: - Permission
     
@@ -119,12 +131,23 @@ class RemindersManager: ObservableObject {
         dueDate:     Date?
     ) {
         reminder.title       = title
-        reminder.notes       = notes
         reminder.isCompleted = isCompleted
+        // Never touch reminder.url here — clearing it causes a diff loop.
+        // URL is set only at createTask time.
+
+        // Normalise empty string to nil before writing.
+        // EventKit may return "" on read, which we normalise to nil in TetherTask.
+        // Writing nil (not "") avoids a round-trip mismatch.
+        let normalisedNotes = (notes?.isEmpty == true) ? nil : notes
+        reminder.notes = normalisedNotes
 
         if let dueDate {
-            reminder.dueDateComponents = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute],
+            // Store date-only components — no time so Reminders shows "Today"
+            // not "Today, 13:00". Google Tasks handles its own UTC timestamp separately.
+            var utcCal = Calendar(identifier: .gregorian)
+            utcCal.timeZone = TimeZone(identifier: "UTC")!
+            reminder.dueDateComponents = utcCal.dateComponents(
+                [.year, .month, .day],
                 from: dueDate
             )
         } else {
@@ -142,8 +165,17 @@ class RemindersManager: ObservableObject {
     // Returns the calendarItemIdentifier of the created reminder so SyncEngine
     // can immediately stamp the local TetherTask — preventing duplicate creation
     // on the next sync cycle.
+    // Strips a URL line appended by Google Tasks sync from the notes field.
+    private func stripURLFromNotes(_ notes: String) -> String {
+        let separator = "\n---url---\n"
+        if let range = notes.range(of: separator) {
+            return String(notes[notes.startIndex..<range.lowerBound])
+        }
+        return notes
+    }
+
     @discardableResult
-    func createTask(title: String, dueDate: Date? = nil, notes: String? = nil) -> String? {
+    func createTask(title: String, dueDate: Date? = nil, notes: String? = nil, url: URL? = nil) -> String? {
         guard isAuthorised else { return nil }
 
         let calendars = store.calendars(for: .reminder)
@@ -153,10 +185,13 @@ class RemindersManager: ObservableObject {
         reminder.title    = title
         reminder.calendar = taskTetherList
         reminder.notes    = notes
+        reminder.url      = url
 
         if let dueDate {
-            reminder.dueDateComponents = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute],
+            var utcCal = Calendar(identifier: .gregorian)
+            utcCal.timeZone = TimeZone(identifier: "UTC")!
+            reminder.dueDateComponents = utcCal.dateComponents(
+                [.year, .month, .day],
                 from: dueDate
             )
         }

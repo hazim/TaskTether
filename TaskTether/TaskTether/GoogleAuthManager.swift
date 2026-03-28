@@ -189,7 +189,7 @@ class GoogleAuthManager: ObservableObject {
 
         guard accessToken != nil else { return }
 
-        if let refresh = refreshToken {
+        if refreshToken != nil {
             // Refresh token present — proactively refresh the access token on
             // launch so we never start with an expired token.
             print("GoogleAuthManager: refreshing access token on launch...")

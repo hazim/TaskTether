@@ -28,6 +28,7 @@ struct TetherTask: Identifiable, Equatable {
     var id:            String          // Local UUID — stable across sync cycles
     var remindersId:   String?         // EKReminder.calendarItemIdentifier
     var googleTasksId: String?         // Google Tasks API id field
+    var parentGoogleId: String?        // Google Tasks parent ID — nil for top-level tasks
 
     // MARK: - Content
 
@@ -73,18 +74,42 @@ enum TetherSource {
 extension TetherTask {
 
     init(from reminder: EKReminder) {
-        self.id            = UUID().uuidString
-        self.remindersId   = reminder.calendarItemIdentifier
-        self.googleTasksId = nil
-        self.title         = reminder.title ?? ""
-        self.notes         = reminder.notes
+        self.id             = UUID().uuidString
+        self.remindersId    = reminder.calendarItemIdentifier
+        self.googleTasksId  = nil
+        self.parentGoogleId = nil
+        self.title          = reminder.title ?? ""
         self.isCompleted   = reminder.isCompleted
-        self.url           = nil
+
+        // Parse URL: check native url property first, then scan notes for a URL.
+        // The Reminders app shows link badges from notes text, not the url property.
+        let nativeURL = reminder.url
+        let notesText = reminder.notes ?? ""
+        let detector  = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let notesURL  = detector?
+            .matches(in: notesText, range: NSRange(notesText.startIndex..., in: notesText))
+            .first
+            .flatMap { $0.url }
+        self.url   = nativeURL ?? notesURL
+        // Normalise empty string to nil — EventKit returns "" for no notes
+        // but we store nil in Google Tasks, causing a false diff every cycle.
+        self.notes = (reminder.notes?.isEmpty == true) ? nil : reminder.notes
         self.lastModified  = reminder.lastModifiedDate ?? Date.distantPast
         self.source        = .reminders
 
-        if let components = reminder.dueDateComponents {
-            self.dueDate = Calendar.current.date(from: components)
+        if let components = reminder.dueDateComponents,
+           let year  = components.year,
+           let month = components.month,
+           let day   = components.day {
+            // Normalise to noon UTC — same format as Google Tasks.
+            // This ensures date equality works with simple == comparison
+            // and avoids timezone offsets shifting the calendar day.
+            var utcCal = Calendar(identifier: .gregorian)
+            utcCal.timeZone = TimeZone(identifier: "UTC")!
+            self.dueDate = utcCal.date(from: DateComponents(
+                timeZone: TimeZone(identifier: "UTC"),
+                year: year, month: month, day: day, hour: 12
+            ))
         } else {
             self.dueDate = nil
         }
@@ -96,16 +121,17 @@ extension TetherTask {
 extension TetherTask {
 
     init(from googleTask: GoogleTask) {
-        self.id            = UUID().uuidString
-        self.remindersId   = nil
-        self.googleTasksId = googleTask.id
-        self.title         = googleTask.title
+        self.id             = UUID().uuidString
+        self.remindersId    = nil
+        self.googleTasksId  = googleTask.id
+        self.parentGoogleId = googleTask.parentId
+        self.title          = googleTask.title
         self.notes         = googleTask.notes
         self.isCompleted   = googleTask.isCompleted
         self.dueDate       = googleTask.dueDate
         self.lastModified  = googleTask.updatedDate ?? Date.distantPast
         self.source        = .googleTasks
-        self.url           = googleTask.links.first.flatMap { URL(string: $0) }
+        self.url           = googleTask.url
     }
 }
 
@@ -119,8 +145,9 @@ extension TetherTask {
             id:          id,
             title:       title,
             isCompleted: isCompleted,
+            isSubtask:   parentGoogleId != nil,
             url:         url,
-            subtasks:    []   // Subtask support added in Group 4
+            subtasks:    []
         )
     }
 }

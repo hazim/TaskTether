@@ -83,6 +83,58 @@
         "danger":              "#FF4444",
         "sparkline":           "#C8F000"
       }
+    },
+    {
+      "id": "indocard_v2",
+      "name": "Indo Card (Improved)",
+      "appearance": "light",
+      "colors": {
+        "backgroundPrimary":   "#F3E7F7",
+        "backgroundSecondary": "#E8D7F0",
+
+        "surface":             "#FFFFFF",
+        "surface2":            "#F4F0F8",
+        "border":              "#C7B8D6",
+
+        "accent":              "#6AD58A",
+        "accentForeground":    "#0A0A0A",
+
+        "textPrimary":         "#1A1A1A",
+        "textSecondary":       "#4A4A4A",
+        "textTertiary":        "#7A7A7A",
+
+        "success":             "#1DB954",
+        "warning":             "#FF8C00",
+        "danger":              "#FF3B30",
+
+        "sparkline":           "#6AD58A"
+      }
+    },
+    {
+      "id": "titan",
+      "name": "Titan",
+      "appearance": "light",
+      "colors": {
+        "backgroundPrimary":   "#F7F8FA",
+        "backgroundSecondary": "#EEF0F4",
+
+        "surface":             "#FFFFFF",
+        "surface2":            "#F3F4F7",
+        "border":              "#D5D8DF",
+
+        "accent":              "#3A6FF8",
+        "accentForeground":    "#FFFFFF",
+
+        "textPrimary":         "#0F172A",
+        "textSecondary":       "#475569",
+        "textTertiary":        "#94A3B8",
+
+        "success":             "#16A34A",
+        "warning":             "#F59E0B",
+        "danger":              "#DC2626",
+
+        "sparkline":           "#3A6FF8"
+      }
     }
   ]
 }

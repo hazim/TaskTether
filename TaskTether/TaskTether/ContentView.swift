@@ -96,16 +96,9 @@ struct MainContainerView: View {
             // Width animates 0 → 300. Clipped so content never bleeds.
 
             TodayView(
-                tasks:           tasks,
-                onToggle:        { id in toggleTask(id) },
-                onTomorrow:      { id in moveToTomorrow(id) },
-                onDelete:        { id in removeTask(id) },
-                onEdit:          { _ in },
-                onCommit:        { id, newTitle in renameTask(id, newTitle) },
-                onLinkTapped:    { _, _ in },
-                onSubtaskToggle: { taskId, subtaskId in toggleSubtask(taskId, subtaskId) },
-                onMove:          { fromId, toId in moveTask(fromId: fromId, toId: toId) },
-                onAddTask:       { title in addTask(title) }
+                tasks:    tasks,
+                onToggle: { id in syncEngine.toggleTask(id: id) },
+                onAdd:    { title in syncEngine.addTask(title: title) }
             )
             // Height is pinned to shellHeight so TodayView's ScrollView never drives
             // the HStack (and therefore the window) to a taller size than the shell.
@@ -143,6 +136,14 @@ struct MainContainerView: View {
             remindersManager.requestAccess()
             googleTasksManager.setup()
             syncEngine.start()
+        }
+        // Re-trigger sync the moment Google Tasks connects — start() fires
+        // before isConnected is true so the initial sync guard fails silently.
+        .onChange(of: googleTasksManager.isConnected) { _, connected in
+            if connected { syncEngine.syncNow() }
+        }
+        .onChange(of: remindersManager.isAuthorised) { _, authorised in
+            if authorised { syncEngine.syncNow() }
         }
         // No animation on the outer container — any implicit animation here
         // propagates to height changes and causes MenuBarExtra's constraint loop crash.
@@ -242,40 +243,9 @@ struct MainContainerView: View {
     }
 
     // MARK: - Live Task State
-    // Driven by SyncEngine. todayTasks filters to due-today + overdue + no-due-date.
 
     private var tasks: [TetherTaskItem] {
         syncEngine.todayTasks.map { $0.toDisplayItem() }
-    }
-
-    // MARK: - Task Callbacks → SyncEngine
-
-    private func toggleTask(_ id: String) {
-        syncEngine.toggleTask(id: id)
-    }
-
-    private func toggleSubtask(_ taskId: String, _ subtaskId: String) {
-        syncEngine.toggleSubtask(taskId: taskId, subtaskId: subtaskId)
-    }
-
-    private func removeTask(_ id: String) {
-        syncEngine.deleteTask(id: id)
-    }
-
-    private func moveToTomorrow(_ id: String) {
-        syncEngine.moveToTomorrow(id: id)
-    }
-
-    private func addTask(_ title: String) {
-        syncEngine.addTask(title: title)
-    }
-
-    private func renameTask(_ id: String, _ newTitle: String) {
-        syncEngine.commitRename(id: id, newTitle: newTitle)
-    }
-
-    private func moveTask(fromId: String, toId: String) {
-        // Drag-to-reorder deferred — parked for Group 5
     }
 
 
