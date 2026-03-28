@@ -258,3 +258,4 @@ class GoogleAuthManager: ObservableObject {
         SecItemDelete(query as CFDictionary)
     }
 }
+
