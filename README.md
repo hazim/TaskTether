@@ -51,15 +51,7 @@ TaskTether runs as a menu bar app on your Mac. On a configurable interval it com
 
 ## Installation
 
-TaskTether is not code-signed with an Apple Developer certificate (this is a free open source project). macOS will show a security warning the first time you open it. This is expected and safe to bypass.
-
-1. Download the latest `.zip` from the [Releases](https://github.com/hazim/TaskTether/releases) page
-2. Unzip and move `TaskTether.app` to your `/Applications` folder
-3. Right-click `TaskTether.app` and choose **Open**
-4. Click **Open** in the security dialog that appears
-5. TaskTether appears in your menu bar
-
-You only need to do steps 3–4 once. After that, TaskTether opens normally.
+TaskTether is currently available as source only. See [Building from source](#building-from-source) below.
 
 ---
 
