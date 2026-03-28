@@ -144,6 +144,12 @@ TaskTether runs entirely on your device. No data is sent to any server other tha
 
 ---
 
+## Roadmap & Changelog
+
+See [ROADMAP.md](ROADMAP.md) for what's coming next and [CHANGELOG.md](CHANGELOG.md) for what's in each release.
+
+---
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE)
