@@ -27,6 +27,13 @@ Removes the App Store blockers identified in v1.0.
 
 ---
 
+## Good to know
+
+- **iOS / iPadOS** — Apple Reminders and Google Tasks both have native mobile apps that cover this well. TaskTether is focused on the Mac. That said, if someone from the community wants to take this in that direction, the door is open.
+- **Windows / Linux** — TaskTether is built on EventKit and AppKit, both Apple-only frameworks. macOS only by design.
+
+---
+
 ## Future — Unscheduled
 
 Ideas that are on the radar but not yet prioritised.
