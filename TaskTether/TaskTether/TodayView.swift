@@ -99,6 +99,10 @@ struct TodayView: View {
                 .scrollIndicatorsFlash(onAppear: false)
             }
         }
+        // Pin content to top — without this the VStack centres its content
+        // when the frame (constrained to shellHeight) is taller than the
+        // content, causing the add field to appear displaced.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

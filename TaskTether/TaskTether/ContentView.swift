@@ -314,8 +314,6 @@ private struct TitleBarIconButton: View {
 }
 
 // MARK: - Settings Gear Button
-// SettingsLink is the correct SwiftUI way to open the Settings scene.
-// It is wrapped here to match the TitleBarIconButton visual style.
 
 private struct SettingsGearButton: View {
 
@@ -336,6 +334,11 @@ private struct SettingsGearButton: View {
         .buttonStyle(.plain)
         .help(String(localized: "tooltip.settings"))
         .onHover { isHovered = $0 }
+        // Activate the app so the Settings window appears in front.
+        // SettingsLink handles the window; simultaneousGesture handles focus.
+        .simultaneousGesture(TapGesture().onEnded {
+            NSApp.activate(ignoringOtherApps: true)
+        })
     }
 }
 

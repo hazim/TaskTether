@@ -99,18 +99,46 @@ class RemindersManager: ObservableObject {
         guard let taskTetherList = calendars.first(where: { $0.title == listName }) else {
             return []
         }
-        
-        let predicate = store.predicateForReminders(in: [taskTetherList])
-        var results: [EKReminder] = []
-        
-        let semaphore = DispatchSemaphore(value: 0)
-        store.fetchReminders(matching: predicate) { reminders in
-            results = reminders ?? []
-            semaphore.signal()
+
+        // Fetch both incomplete AND completed reminders.
+        // Without this, completed reminders are invisible to the diff and
+        // deletions of completed tasks are never detected.
+        let incompletePredicate = store.predicateForReminders(in: [taskTetherList])
+        let completedPredicate  = store.predicateForCompletedReminders(
+            withCompletionDateStarting: nil,
+            ending: nil,
+            calendars: [taskTetherList]
+        )
+
+        var incomplete: [EKReminder] = []
+        var completed:  [EKReminder] = []
+
+        let sem1 = DispatchSemaphore(value: 0)
+        store.fetchReminders(matching: incompletePredicate) { reminders in
+            incomplete = reminders ?? []
+            sem1.signal()
         }
-        semaphore.wait()
-        
-        return results
+        sem1.wait()
+
+        let sem2 = DispatchSemaphore(value: 0)
+        store.fetchReminders(matching: completedPredicate) { reminders in
+            completed = reminders ?? []
+            sem2.signal()
+        }
+        sem2.wait()
+
+        // Deduplicate by calendarItemIdentifier — EventKit can return the same
+        // reminder in both the incomplete and completed predicates, which causes
+        // a crash in Dictionary(uniqueKeysWithValues:) in SyncEngine.
+        var seen  = Set<String>()
+        var deduped: [EKReminder] = []
+        for reminder in incomplete + completed {
+            let id = reminder.calendarItemIdentifier
+            if seen.insert(id).inserted {
+                deduped.append(reminder)
+            }
+        }
+        return deduped
     }
     
     // MARK: - Fetch by ID

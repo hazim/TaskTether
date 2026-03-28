@@ -48,6 +48,7 @@ class SyncEngine: ObservableObject {
     // we delete it from Reminders — guards against transient fetch failures.
     private var remindersDeleteCandidates: Set<String> = []  // remindersIds
     private var googleDeleteCandidates:    Set<String> = []  // googleIds
+    private var consecutiveGoogleZero:     Int          = 0  // consecutive cycles with 0 Google tasks
 
     // MARK: - Init
 
@@ -152,16 +153,32 @@ class SyncEngine: ObservableObject {
             }
 
             // Update deletion candidate sets for next cycle.
-            // Tasks absent this cycle but not in candidates → add to candidates.
-            // Tasks present this cycle → remove from candidates.
+            // A candidate is cleared only when the task RETURNS to the platform
+            // it was deleted from — meaning the deletion was a transient failure.
+            // We never clear candidates just because the task is still present
+            // on the OTHER platform.
             let presentRids = Set(freshReminders.compactMap { $0.remindersId })
             let presentGids = Set(freshGoogleTasks.compactMap { $0.googleTasksId })
+
+            // Reminders candidates (task absent from Google):
+            // Clear only when the task RETURNS to Google (transient failure recovered).
+            let remindersCandidatesThatReturnedToGoogle = remindersDeleteCandidates.filter { rid in
+                guard let gid = idStore.googleId(for: rid) else { return false }
+                return presentGids.contains(gid)
+            }
             remindersDeleteCandidates = remindersDeleteCandidates
                 .union(diff.addToRemindersDeleteCandidates)
-                .subtracting(presentRids)
+                .subtracting(remindersCandidatesThatReturnedToGoogle)
+
+            // Google candidates (task absent from Reminders):
+            // Clear only when the task RETURNS to Reminders (transient failure recovered).
+            let googleCandidatesThatReturnedToReminders = googleDeleteCandidates.filter { gid in
+                guard let rid = idStore.remindersId(for: gid) else { return false }
+                return presentRids.contains(rid)
+            }
             googleDeleteCandidates = googleDeleteCandidates
                 .union(diff.addToGoogleDeleteCandidates)
-                .subtracting(presentGids)
+                .subtracting(googleCandidatesThatReturnedToReminders)
 
             tasks            = sortedByOrder(merged)
             previousSnapshot = tasks
@@ -228,19 +245,27 @@ class SyncEngine: ObservableObject {
             remindersTasks.compactMap { t in t.remindersId.map { ($0, t) } })
         let googleByGid    = Dictionary(uniqueKeysWithValues:
             googleTasks.compactMap { t in t.googleTasksId.map { ($0, t) } })
-        let prevByRid      = Dictionary(uniqueKeysWithValues:
-            previous.compactMap { t in t.remindersId.map { ($0, t) } })
+        // Use reduce to handle any duplicates safely — last writer wins.
+        // Duplicates should not occur after RemindersManager deduplication,
+        // but this prevents a crash if they do.
+        let prevByRid: [String: TetherTask] = previous
+            .compactMap { t in t.remindersId.map { ($0, t) } }
+            .reduce(into: [:]) { $0[$1.0] = $1.1 }
 
-        let linkedCount = idStore.linkedCount
-
-        let googleSuspicious    = googleTasks.isEmpty    && linkedCount > 0
-        let remindersSuspicious = remindersTasks.isEmpty && linkedCount > 0
+        // Safety valve: Google returning 0 tasks could be a network failure.
+        // We treat it as suspicious on the FIRST zero cycle only.
+        // If Google returns 0 for TWO consecutive cycles, it's genuine — allow deletions.
+        // This handles the case where the user deletes the last task.
+        if googleTasks.isEmpty {
+            consecutiveGoogleZero += 1
+        } else {
+            consecutiveGoogleZero = 0
+        }
+        let prevHadTasks     = !previous.isEmpty
+        let googleSuspicious = googleTasks.isEmpty && prevHadTasks && consecutiveGoogleZero < 2
 
         if googleSuspicious {
-            print("SyncEngine: Google returned 0 tasks with \(linkedCount) known links — skipping deletions")
-        }
-        if remindersSuspicious {
-            print("SyncEngine: Reminders returned 0 tasks with \(linkedCount) known links — skipping deletions")
+            print("SyncEngine: Google returned 0 tasks (cycle \(consecutiveGoogleZero)/2) — skipping deletions")
         }
 
         // Track which Google IDs are handled in the Reminders loop
@@ -287,11 +312,19 @@ class SyncEngine: ObservableObject {
                         // Safe to skip — the next cycle will have a proper prev
                         // and handle any genuine differences correctly.
                     }
-                } else if !googleSuspicious, prevByRid[rid] != nil {
-                    // Only delete if absent in previous cycle too (two-cycle guard)
-                    if remindersDeleteCandidates.contains(rid) {
+                } else if prevByRid[rid] != nil {
+                    if rTask.isCompleted {
+                        // Completed task absent from Google — always intentional.
+                        // Completed tasks don't vanish due to network failures.
+                        // Bypass googleSuspicious entirely for completed tasks.
+                        diff.deleteFromReminders.append(rid)
+                    } else if remindersDeleteCandidates.contains(rid) && !googleSuspicious {
+                        // Already a candidate AND Google not suspicious → fire deletion.
                         diff.deleteFromReminders.append(rid)
                     } else {
+                        // First absence OR Google suspicious → become/stay a candidate.
+                        // Always add to candidates regardless of googleSuspicious so
+                        // the deletion fires on the very next non-suspicious cycle.
                         diff.addToRemindersDeleteCandidates.insert(rid)
                     }
                 }
@@ -304,13 +337,18 @@ class SyncEngine: ObservableObject {
             guard let gid = gTask.googleTasksId else { continue }
             if processedGids.contains(gid) { continue }  // Already handled above
             if let rid = idStore.remindersId(for: gid) {
-                if remindersByRid[rid] == nil,
-                   !remindersSuspicious,
-                   prevByRid[rid] != nil {
-                    // Two-cycle guard for Google deletions too
+                if remindersByRid[rid] == nil {
                     if googleDeleteCandidates.contains(gid) {
+                        // Already a candidate — fire deletion regardless of snapshot.
                         diff.deleteFromGoogle.append(gid)
-                    } else {
+                    } else if gTask.isCompleted {
+                        // Completed task deleted from Reminders — always intentional.
+                        // Transient fetch failures don't cause completed tasks to vanish.
+                        // Skip the two-cycle guard and delete immediately.
+                        diff.deleteFromGoogle.append(gid)
+                    } else if prevByRid[rid] != nil {
+                        // Incomplete task, first cycle of absence — become candidate.
+                        // Wait one more cycle to confirm it's a genuine deletion.
                         diff.addToGoogleDeleteCandidates.insert(gid)
                     }
                 }
