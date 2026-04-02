@@ -3,7 +3,7 @@
 //  TaskTether
 //
 //  Created by Hazim Sami on 10/03/2026.
-//  Updated: 13/03/2026 · 18:10
+//  Updated: 01/04/2026
 //
 
 import SwiftUI
@@ -46,6 +46,13 @@ struct TaskTetherApp: App {
                 .environmentObject(remindersManager)
                 .environmentObject(googleTasksManager)
                 .environmentObject(syncEngine)
+                .onAppear {
+                    // NSApp is guaranteed to exist by the time the first view appears.
+                    // Applying activation policy in App.init() crashes because NSApp
+                    // is not yet initialised at that point.
+                    let showInDock = UserDefaults.standard.bool(forKey: "showInDock")
+                    NSApp.setActivationPolicy(showInDock ? .regular : .accessory)
+                }
         }
         .menuBarExtraStyle(.window)
 

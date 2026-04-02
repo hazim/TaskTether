@@ -1001,6 +1001,78 @@
         }
       }
     },
+    "settings.dock.label" : {
+      "comment" : "Toggle label in the Dock section of Settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إظهار الأيقونة في الـ Dock"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show icon in Dock"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dock-ikon megjelenítése"
+          }
+        }
+      }
+    },
+    "settings.dock.restart_hint" : {
+      "comment" : "Helper text shown below the dock toggle in Settings. Tells the user they must restart to apply the change.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصبح التغييرات سارية بعد إعادة تشغيل TaskTether."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Takes effect after restarting TaskTether."
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A változtatás a TaskTether újraindítása után lép életbe."
+          }
+        }
+      }
+    },
+    "settings.section.dock" : {
+      "comment" : "Section header for the Dock visibility setting in Settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dock"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dock"
+          }
+        },
+        "hu" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dok"
+          }
+        }
+      }
+    },
     "settings.section.support" : {
       "extractionState" : "manual",
       "localizations" : {

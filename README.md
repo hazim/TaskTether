@@ -68,17 +68,10 @@ Before TaskTether can talk to Google Tasks, you need to give it permission throu
 
 ### Step 2 — Create credentials
 
-1. Go to **APIs & Services → Credentials**
-2. Click **+ Create Credentials → OAuth 2.0 Client ID**
-3. If prompted to configure a consent screen first:
-   - Choose **External** → **Create**
-   - Fill in App name: `TaskTether`, your email for support and developer contact
-   - Skip the scopes page → **Save and Continue** through to the end
-   - Go back to **Credentials** and click **+ Create Credentials → OAuth 2.0 Client ID**
-4. Set **Application type** to **Desktop app**
-5. Name: `TaskTether` → **Create**
-6. Click **Download JSON** on the confirmation screen
-7. Rename the downloaded file to exactly `GoogleCredentials.json`
+Follow Google's official guide to create an OAuth 2.0 Client ID:
+[developers.google.com/workspace/guides/create-credentials](https://developers.google.com/workspace/guides/create-credentials)
+
+When prompted for application type, choose **Desktop app** and name it `TaskTether`. Once created, download the JSON file and rename it to exactly `GoogleCredentials.json`.
 
 ### Step 3 — Add the credentials file to the app
 

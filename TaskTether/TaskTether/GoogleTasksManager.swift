@@ -124,9 +124,9 @@ class GoogleTasksManager: ObservableObject {
     // Two-pass fetch strategy:
     // Pass 1: orderBy=position — gives correct position order for incomplete tasks (IDs only)
     // Pass 2: showCompleted=true — gives COMPLETE field data for ALL tasks
-    // Incomplete tasks are sorted by Pass 1 order; all data comes from Pass 2.
-    // This prevents the infinite update loop caused by Pass 1 potentially omitting
-    // fields (e.g. due date) that then mismatch against the snapshot every cycle.
+    // Both passes are paginated — the Google Tasks API defaults to maxResults=20.
+    // Without pagination, only the first 20 tasks are ever seen, causing tasks
+    // beyond position 20 to appear absent and eventually be deleted from Reminders.
     func fetchTasks(completion: @escaping ([GoogleTask]) -> Void) {
         guard let token = authManager.getAccessToken(),
               let listId = taskListId else {
@@ -134,40 +134,34 @@ class GoogleTasksManager: ObservableObject {
             return
         }
 
-        let posURL = URL(string: "\(baseURL)/lists/\(listId)/tasks?showCompleted=false&orderBy=position")!
-        let allURL = URL(string: "\(baseURL)/lists/\(listId)/tasks?showCompleted=true&showHidden=true")!
-
-        var posRequest = URLRequest(url: posURL)
-        posRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        var allRequest = URLRequest(url: allURL)
-        allRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         let group       = DispatchGroup()
         var positionIds: [String]     = []
         var allTasks:    [GoogleTask] = []
-        var needsRetry = false
+        var needsRetry  = false
 
+        // MARK: Pass 1 — position order (paginated)
         group.enter()
-        URLSession.shared.dataTask(with: posRequest) { data, response, error in
-            defer { group.leave() }
-            if let http = response as? HTTPURLResponse, http.statusCode == 401 {
-                needsRetry = true; return
-            }
-            guard let data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else { return }
-            positionIds = (json["items"] as? [[String: Any]] ?? [])
-                .compactMap { $0["id"] as? String }
-        }.resume()
+        fetchAllPages(
+            baseURLString: "\(baseURL)/lists/\(listId)/tasks?showCompleted=false&orderBy=position&maxResults=100",
+            token: token,
+            accumulator: { items in
+                positionIds.append(contentsOf: items.compactMap { $0["id"] as? String })
+            },
+            on401: { needsRetry = true },
+            completion: { group.leave() }
+        )
 
+        // MARK: Pass 2 — full data (paginated)
         group.enter()
-        URLSession.shared.dataTask(with: allRequest) { data, response, error in
-            defer { group.leave() }
-            guard let data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            else { return }
-            allTasks = (json["items"] as? [[String: Any]] ?? []).compactMap { GoogleTask(from: $0) }
-        }.resume()
+        fetchAllPages(
+            baseURLString: "\(baseURL)/lists/\(listId)/tasks?showCompleted=true&showHidden=true&maxResults=100",
+            token: token,
+            accumulator: { items in
+                allTasks.append(contentsOf: items.compactMap { GoogleTask(from: $0) })
+            },
+            on401: { needsRetry = true },
+            completion: { group.leave() }
+        )
 
         group.notify(queue: .global()) { [weak self] in
             if needsRetry {
@@ -187,6 +181,47 @@ class GoogleTasksManager: ObservableObject {
             #endif
             completion(merged)
         }
+    }
+
+    // Fetches all pages for a given Google Tasks list URL, calling accumulator
+    // with each page's items array and completion when all pages are done.
+    // Follows nextPageToken until no further pages remain.
+    private func fetchAllPages(
+        baseURLString: String,
+        token:         String,
+        accumulator:   @escaping ([[String: Any]]) -> Void,
+        on401:         @escaping () -> Void,
+        completion:    @escaping () -> Void
+    ) {
+        func fetchPage(urlString: String) {
+            guard let url = URL(string: urlString) else { completion(); return }
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let http = response as? HTTPURLResponse, http.statusCode == 401 {
+                    on401()
+                    completion()
+                    return
+                }
+                guard let data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                else { completion(); return }
+
+                let items = json["items"] as? [[String: Any]] ?? []
+                accumulator(items)
+
+                // Follow nextPageToken if present — more pages available
+                if let nextToken = json["nextPageToken"] as? String,
+                   let encoded = nextToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+                    fetchPage(urlString: "\(baseURLString)&pageToken=\(encoded)")
+                } else {
+                    completion()
+                }
+            }.resume()
+        }
+
+        fetchPage(urlString: baseURLString)
     }
     
     // MARK: - Write Tasks
@@ -301,7 +336,15 @@ class GoogleTasksManager: ObservableObject {
             "status": isCompleted ? "completed" : "needsAction"
         ]
         if let notes { taskData["notes"] = notes }
-        if let dueDate { taskData["due"] = Self.utcNoonString(from: dueDate) }
+        if let dueDate {
+            taskData["due"] = Self.utcNoonString(from: dueDate)
+        } else {
+            // Explicitly clear the due date on Google's server.
+            // Without this, omitting "due" from the PATCH body leaves the
+            // existing value in place — causing the old date to bounce back
+            // on the next sync cycle.
+            taskData["due"] = NSNull()
+        }
 
         var request = URLRequest(url: URL(string: "\(baseURL)/lists/\(listId)/tasks/\(taskId)")!)
         request.httpMethod = "PATCH"

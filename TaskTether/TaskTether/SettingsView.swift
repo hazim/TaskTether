@@ -3,7 +3,7 @@
 //  TaskTether
 //
 //  Created: 13/03/2026 · 18:10
-//  Updated: 28/03/2026
+//  Updated: 01/04/2026
 //
 
 import SwiftUI
@@ -23,7 +23,7 @@ struct SettingsView: View {
                     )
                 }
         }
-        .frame(width: 460, height: 580)
+        .frame(width: 460, height: 620)
         // Bring window to front when it opens
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
@@ -55,6 +55,10 @@ private struct GeneralSettingsTab: View {
         let stored = UserDefaults.standard.array(forKey: "AppleLanguages") as? [String]
         return stored?.first ?? "system"
     }()
+
+    // Reads and writes the dock visibility preference stored in UserDefaults.
+    // Applied on next launch via NSApp.setActivationPolicy in TaskTetherApp.init().
+    @State private var showInDock: Bool = UserDefaults.standard.bool(forKey: "showInDock")
 
     private func deferred<T>(_ keyPath: ReferenceWritableKeyPath<ThemeManager, T>) -> Binding<T> {
         Binding(
@@ -122,6 +126,18 @@ private struct GeneralSettingsTab: View {
                     }
 
                     Text(String(localized: "settings.language.restart_hint"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                // MARK: Dock
+                Section(String(localized: "settings.section.dock")) {
+                    Toggle(String(localized: "settings.dock.label"), isOn: $showInDock)
+                        .onChange(of: showInDock) { _, newValue in
+                            UserDefaults.standard.set(newValue, forKey: "showInDock")
+                        }
+
+                    Text(String(localized: "settings.dock.restart_hint"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

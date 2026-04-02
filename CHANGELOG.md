@@ -4,6 +4,24 @@ All notable changes to TaskTether are documented here.
 
 ---
 
+## [1.0.1] — 2026-04-02
+
+### Fixed
+- **Google Tasks fetch capped at 20 items** — the Google Tasks API defaults to returning a maximum of 20 tasks per request. TaskTether was not setting `maxResults` or handling pagination via `nextPageToken`, so any tasks beyond the first 20 were completely invisible to the sync engine. This caused tasks to appear absent from Google when they were not, triggering false deletions from Reminders, and prevented future-dated and undated tasks from ever syncing across. Both fetch passes are now fully paginated with `maxResults=100` per page, supporting up to hundreds of tasks correctly.
+- **Date boundary bug** — tasks created or updated after local midnight (e.g. Budapest at 00:18) were written to Reminders using a UTC calendar, causing them to be stored with the previous day's date. They would then disappear from the Today view on the next sync and cause the productivity score to show a false 100%. Due dates are now extracted using the local calendar before being stored, so the correct calendar day is always written regardless of timezone.
+- **Due date removal not propagating to Google Tasks** — removing a due date from a task in Reminders was not clearing it in Google Tasks. The sync engine omitted the `due` field from the PATCH request when the date was nil, so Google kept the old value and it bounced back on the next sync. Now explicitly sends `null` to clear the field server-side.
+
+### Added
+- **Dock visibility setting** — Settings → Dock → Show icon in Dock. Off by default. Takes effect after restarting TaskTether.
+
+### Docs
+- Replaced the manual credentials walkthrough in README with a link to Google's official OAuth credentials guide.
+
+### Notes
+- Task display order in TaskTether and the dashboard reflects the Google Tasks API position order (`orderBy=position`). This does not match any of the sort options available in the Google Tasks UI — this is a deliberate limitation of the Google Tasks API, which does not expose the "My order" UI sort through its API.
+
+---
+
 ## [1.0.0] — 2026-03-28 — Initial public release
 
 ### Core sync

@@ -28,6 +28,26 @@ class RemindersManager: ObservableObject {
             year: comps.year, month: comps.month, day: comps.day, hour: 12
         )) ?? date
     }
+
+    // Extract year/month/day in the user's LOCAL timezone, then package as
+    // UTC-anchored DateComponents for storage. This is the correct pattern for
+    // date-only due dates: the human calendar date is local, but EventKit
+    // stores components without a time, so we pin them to UTC to avoid any
+    // offset shifting the day on read-back.
+    // Bug 1 root cause: using utcCal.dateComponents(from:) extracts the UTC
+    // date, which at 00:18 Budapest (UTC+2) is still the previous calendar day.
+    private func localDateComponents(from date: Date) -> DateComponents {
+        let local = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        var utcCal = Calendar(identifier: .gregorian)
+        utcCal.timeZone = TimeZone(identifier: "UTC")!
+        return DateComponents(
+            calendar: utcCal,
+            timeZone: TimeZone(identifier: "UTC"),
+            year:  local.year,
+            month: local.month,
+            day:   local.day
+        )
+    }
     
     // MARK: - Permission
     
@@ -176,12 +196,11 @@ class RemindersManager: ObservableObject {
         if let dueDate {
             // Store date-only components — no time so Reminders shows "Today"
             // not "Today, 13:00". Google Tasks handles its own UTC timestamp separately.
-            var utcCal = Calendar(identifier: .gregorian)
-            utcCal.timeZone = TimeZone(identifier: "UTC")!
-            reminder.dueDateComponents = utcCal.dateComponents(
-                [.year, .month, .day],
-                from: dueDate
-            )
+            // Use localDateComponents(from:) — extracts the LOCAL calendar day first,
+            // then packages as UTC components. Using a UTC calendar directly gives the
+            // wrong day for users east of UTC (e.g. Budapest at 00:18 is still the
+            // previous UTC day).
+            reminder.dueDateComponents = localDateComponents(from: dueDate)
         } else {
             reminder.dueDateComponents = nil
         }
@@ -224,12 +243,8 @@ class RemindersManager: ObservableObject {
         reminder.url      = url
 
         if let dueDate {
-            var utcCal = Calendar(identifier: .gregorian)
-            utcCal.timeZone = TimeZone(identifier: "UTC")!
-            reminder.dueDateComponents = utcCal.dateComponents(
-                [.year, .month, .day],
-                from: dueDate
-            )
+            // Same fix as updateTask — extract LOCAL calendar day, store as UTC components.
+            reminder.dueDateComponents = localDateComponents(from: dueDate)
         }
 
         do {
