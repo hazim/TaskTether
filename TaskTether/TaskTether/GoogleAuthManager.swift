@@ -121,10 +121,19 @@ class GoogleAuthManager: ObservableObject {
     // MARK: - Sign Out
 
     func signOut() {
-        accessToken = nil
+        accessToken  = nil
         refreshToken = nil
         clearTokensFromKeychain()
-        isAuthenticated = false
+
+        DispatchQueue.main.async {
+            self.isAuthenticated = false
+            // Close any open Settings window so ContentView immediately
+            // shows ConnectView — without this the user has no visual
+            // confirmation that sign out happened.
+            NSApp.windows
+                .filter { $0.title.contains("Settings") || $0.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" }
+                .forEach { $0.close() }
+        }
     }
 
     // MARK: - Token Access
@@ -184,6 +193,12 @@ class GoogleAuthManager: ObservableObject {
     }
 
     private func loadTokensFromKeychain() {
+        // Migrate any tokens saved without kSecAttrService (pre-fix builds).
+        // Reads the old-style entry, re-saves with service key, deletes the old one.
+        // Safe to call on every launch — no-op if already migrated.
+        migrateKeychainEntryIfNeeded(key: "tasktether_access_token")
+        migrateKeychainEntryIfNeeded(key: "tasktether_refresh_token")
+
         accessToken  = loadFromKeychain(key: "tasktether_access_token")
         refreshToken = loadFromKeychain(key: "tasktether_refresh_token")
 
@@ -226,12 +241,40 @@ class GoogleAuthManager: ObservableObject {
         deleteFromKeychain(key: "tasktether_refresh_token")
     }
 
+    // Reads a token stored without kSecAttrService (pre-fix builds),
+    // re-saves it with the service key, then deletes the legacy entry.
+    private func migrateKeychainEntryIfNeeded(key: String) {
+        // Try reading the legacy entry (no service key)
+        let legacyQuery: [String: Any] = [
+            kSecClass as String:      kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String:  true,
+            kSecMatchLimit as String:  kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(legacyQuery as CFDictionary, &result)
+        guard status == errSecSuccess,
+              let data = result as? Data,
+              let value = String(data: data, encoding: .utf8) else { return }
+
+        // Re-save with service key
+        saveToKeychain(key: key, value: value)
+
+        // Delete the legacy entry
+        SecItemDelete(legacyQuery as CFDictionary)
+
+        #if DEBUG
+        print("GoogleAuthManager: migrated keychain entry '\(key)' ✅")
+        #endif
+    }
+
     private func saveToKeychain(key: String, value: String) {
         let data = value.data(using: .utf8)!
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
+            kSecClass as String:       kSecClassGenericPassword,
+            kSecAttrService as String: "com.hazim.TaskTether",
             kSecAttrAccount as String: key,
-            kSecValueData as String: data
+            kSecValueData as String:   data
         ]
         SecItemDelete(query as CFDictionary)
         SecItemAdd(query as CFDictionary, nil)
@@ -239,10 +282,11 @@ class GoogleAuthManager: ObservableObject {
 
     private func loadFromKeychain(key: String) -> String? {
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
+            kSecClass as String:       kSecClassGenericPassword,
+            kSecAttrService as String: "com.hazim.TaskTether",
             kSecAttrAccount as String: key,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecReturnData as String:  true,
+            kSecMatchLimit as String:  kSecMatchLimitOne
         ]
         var result: AnyObject?
         SecItemCopyMatching(query as CFDictionary, &result)
@@ -252,7 +296,8 @@ class GoogleAuthManager: ObservableObject {
 
     private func deleteFromKeychain(key: String) {
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
+            kSecClass as String:       kSecClassGenericPassword,
+            kSecAttrService as String: "com.hazim.TaskTether",
             kSecAttrAccount as String: key
         ]
         SecItemDelete(query as CFDictionary)

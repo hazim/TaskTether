@@ -4,6 +4,15 @@ All notable changes to TaskTether are documented here.
 
 ---
 
+## [1.0.2] — 2026-04-04
+
+### Fixed
+- **Keychain inconsistency between Debug and Release builds** — tokens were stored without a `kSecAttrService` key, causing macOS to scope them to the signing identity. Switching between Debug and Release binaries made previously stored tokens unreadable, forcing reconnection after every rebuild. All Keychain operations now include a stable service identifier (`com.hazim.TaskTether`) so tokens persist correctly across all build types.
+- **Automatic migration of existing tokens** — on first launch after this update, any tokens stored in the old format are automatically migrated. No manual reconnection required.
+- **Sign out did not show Connect screen** — clicking Sign Out in Settings cleared the token but left the Settings window open with no visual confirmation. Sign out now closes the Settings window immediately so the Connect screen appears automatically.
+
+---
+
 ## [1.0.1] — 2026-04-02
 
 ### Fixed
