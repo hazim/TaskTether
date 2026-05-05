@@ -102,26 +102,21 @@ struct MainContainerView: View {
     @ObservedObject var remindersManager:   RemindersManager
     @ObservedObject var googleTasksManager: GoogleTasksManager
 
-    @State private var activePanel:      Panel         = .compact
-    @State private var engineStarted:    Bool          = false
+    @State private var activePanel:   Panel   = .expanded
+    @State private var engineStarted: Bool    = false
     // Captures the shell's intrinsic height so TodayView can be constrained to match.
     // Without this, TodayView's ScrollView reports 12-item content height to the HStack,
     // making the window far too tall even when Today is visually hidden at width=0.
-    @State private var shellHeight:       CGFloat       = 0
+    @State private var shellHeight:   CGFloat = 0
 
-    // Tracks whether the InsightPanel should be visible.
-    // Persists when switching to Today so Expanded→Today keeps the taller shell height.
-    // Compact→Today leaves it false so the shell stays at compact height.
-    @State private var showInsightPanel: Bool          = false
-
-    private var todayIsOpen: Bool { activePanel == .today }
+    private var todayIsOpen: Bool { activePanel == .expanded }
 
     var body: some View {
         // MenuBarExtra (.menuBarExtraStyle(.window)) anchors to the menu bar icon
         // and grows LEFTWARD when content gets wider. So we just let content drive
         // the width — no offsets, no fixed frames, no constraint loops.
-        //   Today closed: 300px (Shell only)
-        //   Today open:   601px (TodayView + divider + Shell)
+        //   Compact:  300px (Shell only)
+        //   Expanded: 601px (TodayView + divider + Shell)
         // The right edge stays fixed. macOS handles the rest.
         HStack(spacing: 0) {
 
@@ -178,22 +173,6 @@ struct MainContainerView: View {
         .onChange(of: remindersManager.isAuthorised) { _, authorised in
             if authorised { syncEngine.syncNow() }
         }
-        // No animation on the outer container — any implicit animation here
-        // propagates to height changes and causes MenuBarExtra's constraint loop crash.
-        // Animations are applied directly on the Today panel views below.
-        .onChange(of: activePanel) { _, newPanel in
-            // When switching to Today, preserve the current insight panel state
-            // so Expanded→Today keeps the taller shell height.
-            // When switching away from Today, update based on the new destination.
-            if newPanel != .today {
-                var t = Transaction(animation: nil)
-                t.disablesAnimations = true
-                withTransaction(t) {
-                    showInsightPanel = (newPanel == .expanded)
-                }
-            }
-            // If newPanel == .today, showInsightPanel is intentionally left unchanged.
-        }
     }
 
     // MARK: Shell — never redraws as a unit
@@ -216,7 +195,7 @@ struct MainContainerView: View {
 
             // Zone 3 — SyncStrip
             shellDivider
-            SyncStripRow(lastSyncText: syncEngine.lastSyncText)
+            SyncStripRow(lastSyncText: syncEngine.lastSyncText, isError: syncEngine.state != .idle && syncEngine.state != .syncing)
 
             // Zone 4 — ServiceColumns
             shellDivider
@@ -232,7 +211,7 @@ struct MainContainerView: View {
             // MenuBarExtra cannot animate height changes without crashing (constraint loop).
             // Window height snaps instantly; content fades in/out with opacity.
             // The pill slide in Zone 2 provides the visual transition feel.
-            if showInsightPanel {
+            if activePanel == .expanded {
                 shellDivider
                 InsightPanelView(
                     todayScore:         syncEngine.statsStore.todayScore,
@@ -383,6 +362,7 @@ private struct SyncStripRow: View {
 
     @EnvironmentObject private var themeManager: ThemeManager
     let lastSyncText: String
+    let isError: Bool
 
     var body: some View {
         HStack {
@@ -396,7 +376,7 @@ private struct SyncStripRow: View {
 
             Text(lastSyncText)
                 .font(.system(size: 9.5, design: .monospaced).weight(.medium))
-                .foregroundStyle(themeManager.success)
+                .foregroundStyle(isError ? themeManager.danger : themeManager.success)
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)

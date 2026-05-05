@@ -335,7 +335,7 @@ class GoogleTasksManager: ObservableObject {
             "title":  title,
             "status": isCompleted ? "completed" : "needsAction"
         ]
-        if let notes { taskData["notes"] = notes }
+        if let notes { taskData["notes"] = notes } else { taskData["notes"] = NSNull() }
         if let dueDate {
             taskData["due"] = Self.utcNoonString(from: dueDate)
         } else {

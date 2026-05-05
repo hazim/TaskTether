@@ -14,13 +14,11 @@ import SwiftUI
 enum Panel: String, CaseIterable {
     case compact  = "compact"
     case expanded = "expanded"
-    case today    = "today"
 
     var labelKey: String {
         switch self {
         case .compact:  return "nav.compact"
         case .expanded: return "nav.expanded"
-        case .today:    return "nav.today"
         }
     }
 }
@@ -46,7 +44,7 @@ struct SegmentedNav: View {
     // Local state drives the pill animation independently from the binding.
     // The binding changes instantly (no animation) to keep window resize instant.
     // This state animates with a spring so the pill slides smoothly.
-    @State private var animatedSelection: Panel = .compact
+    @State private var animatedSelection: Panel = .expanded
 
     var body: some View {
         HStack(spacing: 0) {

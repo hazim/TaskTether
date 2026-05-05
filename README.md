@@ -32,7 +32,8 @@ TaskTether runs as a menu bar app on your Mac. On a configurable interval it com
 - **Subtask support** — subtasks from Google Tasks appear grouped under their parent
 - **Completion sync** — marking a task done on either platform syncs the completion
 - **Deletion sync** — deleting a task on either platform removes it from both
-- **Today view** — see, complete, and add tasks without leaving the menu bar
+- **Expanded mode** — task list, productivity stats, and sync status in one full view
+- **Compact mode** — minimal sync status at a glance, 300px footprint
 - **Productivity stats** — daily score, yesterday's comparison, 7-day bar chart
 - **Theming** — seven built-in themes (Sand, Glacier, Titan, Midnight, Dusk, Prolis, Ember) plus custom JSON theme support
 - **Localisation** — English, Magyar, and العربية included; easy to add more

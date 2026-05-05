@@ -544,7 +544,7 @@
       }
     },
     "nav.today" : {
-      "extractionState" : "manual",
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

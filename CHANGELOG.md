@@ -4,6 +4,21 @@ All notable changes to TaskTether are documented here.
 
 ---
 
+## [1.0.3] — 2026-05-05
+
+### Fixed
+- **Clearing notes in Reminders now propagates to Google Tasks** — removing notes from a task in Reminders was not clearing them in Google Tasks. The sync engine omitted the `notes` field from the PATCH request when nil, so Google kept the old value and wrote it back on the next sync. Now explicitly sends `null` to clear the field, matching the existing behaviour for due dates.
+- **OAuth retry no longer silently fails after closing the browser** — if the browser was closed without completing the Google sign-in flow, port 8080 remained locked. A second attempt to connect would fail silently because the new listener could not bind to the already-open port. `LocalHTTPServer.stop()` is now called at the start of each sign-in attempt to tear down any stale listener first.
+- **Sync error state now shown in red** — the last-sync timestamp in the status strip was always displayed in green regardless of sync state. It now switches to red when the sync engine is in an error state, giving a clear visual signal that something has gone wrong.
+
+### Changed
+- **Simplified navigation — two modes instead of three** — the Today panel is now always visible when in Expanded mode, eliminating the separate Today nav option. The app now has two distinct states: Expanded (task list + productivity stats, 600px) and Compact (sync status only, 300px). Expanded is the default on first launch.
+
+### Added
+- **Ko-fi button in Settings** — the Support section now shows the official Ko-fi branded button instead of a plain icon, linking to [ko-fi.com/hazims](https://ko-fi.com/hazims).
+
+---
+
 ## [1.0.2] — 2026-04-04
 
 ### Fixed

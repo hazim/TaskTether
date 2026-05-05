@@ -52,6 +52,10 @@ class GoogleAuthManager: ObservableObject {
         isAuthenticating = true
         errorMessage = nil
 
+        // Tear down any stale listener from a previous abandoned attempt
+        // before starting a new one — otherwise port 8080 stays locked.
+        server.stop()
+
         // Start local server to catch the redirect
         server.start { [weak self] code in
             self?.exchangeCodeForTokens(code: code)

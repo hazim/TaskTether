@@ -192,16 +192,13 @@ private struct GeneralSettingsTab: View {
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Button {
-                            if let url = URL(string: "https://ko-fi.com/hazims") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        } label: {
-                            Label(
-                                String(localized: "settings.support.link"),
-                                systemImage: "cup.and.saucer"
-                            )
+                        Link(destination: URL(string: "https://ko-fi.com/hazims")!) {
+                            Image("kofi_button")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 36)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
