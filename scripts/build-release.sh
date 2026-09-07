@@ -318,15 +318,30 @@ make_pkg() {
   local pkg_path="$OUT_DIR/$pkg_name"
   local scripts_dir="$SCRIPT_DIR/pkg-scripts"
 
+  # Build from a staged root with BundleIsRelocatable=false. The default
+  # (--component) marks the bundle relocatable, so Installer would upgrade
+  # any copy of com.hazim.TaskTether Spotlight finds — a teammate's copy on
+  # the Desktop, say — instead of /Applications, and postinstall would then
+  # find nothing to launch.
+  local root_dir="$OUT_DIR/.pkg-root"
+  local component_plist="$OUT_DIR/.pkg-component.plist"
+  rm -rf "$root_dir" "$component_plist"
+  mkdir -p "$root_dir"
+  ditto "$APP_PATH" "$root_dir/TaskTether.app"
+  pkgbuild --analyze --root "$root_dir" "$component_plist" >/dev/null
+  /usr/libexec/PlistBuddy -c 'Set :0:BundleIsRelocatable false' "$component_plist"
+
   rm -f "$pkg_path"
   echo "==> Building installer package $pkg_name"
   pkgbuild \
-    --component "$APP_PATH" \
+    --root "$root_dir" \
+    --component-plist "$component_plist" \
     --install-location /Applications \
     --scripts "$scripts_dir" \
     --identifier com.hazim.TaskTether \
     --version "$VERSION" \
     "$pkg_path"
+  rm -rf "$root_dir" "$component_plist"
 
   PKG_PATH="$pkg_path"
   PKG_SIZE="$(du -h "$pkg_path" | cut -f1)"
@@ -361,8 +376,9 @@ if [[ -n "$PKG_PATH" ]]; then
 fi
 echo ""
 echo " Recipient instructions (.pkg — installs and starts the app):"
-echo "   1. Right-click (or Control-click) TaskTether-${VERSION}.pkg and"
-echo "      choose Open, then confirm — the package is not notarised."
+echo "   1. Open TaskTether-${VERSION}.pkg. It is not notarised, so macOS"
+echo "      blocks it once: right-click -> Open on macOS 14 and earlier, or"
+echo "      System Settings -> Privacy & Security -> Open Anyway on macOS 15+."
 echo "   2. Click through the installer (admin password required)."
 echo "   3. TaskTether launches by itself and appears in the menu bar."
 echo "      It registers itself to launch at login on first start."

@@ -205,6 +205,14 @@ class SyncEngine: ObservableObject {
 
     // MARK: - Sync Cycle
 
+    // Signed in but the initial list fetch failed (offline launch): ask
+    // GoogleTasksManager to try again. setup() is a no-op while connected.
+    @MainActor
+    private func retryConnectionIfNeeded() {
+        guard authManager.isAuthenticated, !googleTasksManager.isConnected else { return }
+        googleTasksManager.setup()
+    }
+
     @MainActor
     private func sync() async {
         guard !isSyncing,
@@ -212,6 +220,7 @@ class SyncEngine: ObservableObject {
               remindersManager.isAuthorised,
               googleTasksManager.isConnected else {
             if state == .syncing { state = .idle }
+            retryConnectionIfNeeded()
             return
         }
 

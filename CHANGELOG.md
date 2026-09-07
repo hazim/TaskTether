@@ -8,7 +8,7 @@ All notable changes to TaskTether are documented here.
 
 ### Fixed
 - **Google sign-in no longer lost on relaunch** — the keychain migration that runs at startup matched the current token entries as well as the legacy ones it was meant to clean up, and deleted them. Every launch after the first sign-in (a reboot, an update, a reinstall) forced a fresh "Connect Google Account". Tokens now survive relaunches and app updates.
-- **Offline launches keep the account connected** — a failed token refresh only signs the user out when Google reports the token as revoked or expired (`invalid_grant`). No network, DNS failures, or a Google outage leave the stored tokens in place and sync resumes on the next cycle.
+- **Offline launches keep the account connected** — a failed token refresh only signs the user out when Google reports the token as revoked or expired (`invalid_grant`). No network, DNS failures, or a Google outage leave the stored tokens in place; the connection is retried on every sync tick and sync resumes once the network is back.
 
 ### Added
 - **`.pkg` installer** — `scripts/build-release.sh` now also produces `dist/TaskTether-<version>.pkg`. Its postinstall step launches the app right after installation, so it appears in the menu bar immediately; the app then registers its own launch-at-login. Apps installed by a package are not quarantined, so the right-click → Open step applies to the package only. Skip with `--no-pkg`.

@@ -84,6 +84,9 @@ class GoogleTasksManager: ObservableObject {
 
     // MARK: - Setup
 
+    // Cleared again when the first list fetch fails so a later setup() call
+    // (SyncEngine retries on every timer tick while disconnected) gets
+    // another attempt — an offline launch must not pin the connection off.
     private var hasSetup = false
 
     func setup() {
@@ -107,6 +110,7 @@ class GoogleTasksManager: ObservableObject {
                 case .failure:
                     self?.errorMessage = String(localized: "error.tasks.fetchlists")
                     self?.isConnected = false
+                    self?.hasSetup = false
                 }
             }
         }

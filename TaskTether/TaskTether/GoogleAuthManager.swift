@@ -285,6 +285,15 @@ class GoogleAuthManager: ObservableObject {
             if case .refreshed = self { return true }
             return false
         }
+
+        // For logging: never the token itself.
+        var label: String {
+            switch self {
+            case .refreshed: return "refreshed"
+            case .revoked:   return "revoked"
+            case .transient: return "transient"
+            }
+        }
     }
 
     private func refreshRequest(refreshToken: String) -> URLRequest {
@@ -313,7 +322,7 @@ class GoogleAuthManager: ObservableObject {
 
     private func apply(_ outcome: RefreshOutcome) {
         #if DEBUG
-        print("GoogleAuthManager: refresh outcome — \(outcome)")
+        print("GoogleAuthManager: refresh outcome — \(outcome.label)")
         #endif
         switch outcome {
         case .refreshed(let token):
@@ -414,11 +423,13 @@ class GoogleAuthManager: ObservableObject {
               let data = result as? Data,
               let value = String(data: data, encoding: .utf8) else { return }
 
+        // Delete the legacy entry *before* re-saving: the query matches on
+        // account alone, so done afterwards it would take the new entry too.
+        // The guard above ensures only legacy entries exist at this point.
+        SecItemDelete(legacyQuery as CFDictionary)
+
         // Re-save with service key
         saveToKeychain(key: key, value: value)
-
-        // Delete the legacy entry
-        SecItemDelete(legacyQuery as CFDictionary)
 
         #if DEBUG
         print("GoogleAuthManager: migrated keychain entry '\(key)' ✅")
