@@ -4,6 +4,13 @@ All notable changes to TaskTether are documented here.
 
 ---
 
+## [1.2.2] — 2026-09-07
+
+### Fixed
+- **No Dock icon at launch** — the app now declares `LSUIElement`, so it starts as a menu-bar-only agent. Previously it launched as a regular app (Dock bounce, Cmd-Tab entry) and switched to agent mode a moment later. The "Show in Dock" setting still works.
+
+---
+
 ## [1.2.1] — 2026-09-04
 
 ### Changed
