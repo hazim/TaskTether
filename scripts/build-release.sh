@@ -142,12 +142,20 @@ fi
 echo "==> Built app: $APP_PATH"
 
 # ---------------------------------------------------------------------------
-# Optional: inject GoogleCredentials.json and re-sign
+# Inject GoogleCredentials.json (optional) and re-sign with the shipping
+# entitlements. The re-sign is unconditional: xcodebuild signs with Xcode's
+# auto-generated entitlements, which include App Sandbox, whereas the
+# shipped app is deliberately not sandboxed (TaskTether.entitlements grants
+# only Reminders access). A sandboxed build keeps its preferences, list
+# pairings and Google sign-in in a separate container, so shipping one by
+# accident looks to the user like a fresh install (1.2.2–1.2.3 did this).
 # ---------------------------------------------------------------------------
 if [[ -n "$CREDENTIALS" ]]; then
   echo "==> Injecting credentials from $CREDENTIALS"
   cp "$CREDENTIALS" "$APP_PATH/Contents/Resources/GoogleCredentials.json"
+fi
 
+{
   if [[ $ADHOC -eq 1 ]]; then
     IDENTITY="-"
     RESIGN_ARGS=(--force --deep --sign "$IDENTITY" --entitlements "$ENTITLEMENTS" "$APP_PATH")
@@ -170,7 +178,13 @@ if [[ -n "$CREDENTIALS" ]]; then
       exit 1
     fi
   fi
+}
+
+if codesign -d --entitlements :- "$APP_PATH" 2>/dev/null | grep -q 'com.apple.security.app-sandbox'; then
+  echo "error: built app is still sandboxed after re-signing" >&2
+  exit 1
 fi
+echo "==> Entitlements OK (not sandboxed)"
 
 # ---------------------------------------------------------------------------
 # Verification (fail loudly on real problems; spctl rejection is expected)

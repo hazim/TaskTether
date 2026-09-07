@@ -6,6 +6,9 @@ All notable changes to TaskTether are documented here.
 
 ## [1.2.4] — 2026-09-07
 
+### Fixed
+- **Release builds are not sandboxed again** — 1.2.2 and 1.2.3 were accidentally signed with Xcode's auto-generated App Sandbox entitlement (the release script only re-signed when `--credentials` was passed). A sandboxed build keeps its settings, list pairings and Google sign-in in a separate container, so upgrading to those versions looked like a fresh install. The script now always re-signs with the shipping entitlements and refuses to package a sandboxed app.
+
 ### Added
 - **Panel opens by itself on first launch** — when the app starts on a Mac with no Google account connected, it opens its panel once so the "Connect Google Account" step is in front of the user without them having to find the menu bar icon. Happens only once per Mac and never for upgrades of an already-connected install.
 
