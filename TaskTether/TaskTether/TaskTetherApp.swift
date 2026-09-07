@@ -80,6 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: init
 
     override init() {
+        #if DEBUG
+        // Line-buffer stdout so DEBUG prints reach a redirected log as they
+        // happen instead of only at a clean exit.
+        setvbuf(stdout, nil, _IOLBF, 0)
+        #endif
         let theme  = ThemeManager()
         let auth   = GoogleAuthManager()
         let remind = RemindersManager()

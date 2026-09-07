@@ -57,7 +57,7 @@ Lists are paired by name the first time they're seen; after that, the pairing tr
 
 ## Installation
 
-**Pre-built binary** (from a teammate or GitHub Releases) — open the `.dmg`, drag `TaskTether.app` onto the `Applications` shortcut, then eject the disk image. On first launch, right-click (or Control-click) `TaskTether.app` in `/Applications` and choose **Open**. The app isn't notarised, so Gatekeeper will otherwise refuse to launch it; right-click → Open (or **System Settings → Privacy & Security → Open Anyway**) is a one-time step. If you were given a `.zip` instead, unzip it and drag `TaskTether.app` to `/Applications` before following the same first-launch step.
+**Pre-built binary** (from a teammate or GitHub Releases) — the easiest route is the `.pkg`: right-click it, choose **Open**, and click through the installer. TaskTether launches by itself when the installer finishes and appears in the menu bar. If you were given a `.dmg` instead: open the `.dmg`, drag `TaskTether.app` onto the `Applications` shortcut, then eject the disk image. On first launch, right-click (or Control-click) `TaskTether.app` in `/Applications` and choose **Open**. The app isn't notarised, so Gatekeeper will otherwise refuse to launch it; right-click → Open (or **System Settings → Privacy & Security → Open Anyway**) is a one-time step. If you were given a `.zip` instead, unzip it and drag `TaskTether.app` to `/Applications` before following the same first-launch step.
 
 **Building from source** — see [Building from source](#building-from-source) below.
 
@@ -126,12 +126,13 @@ Requires Xcode 15 or later.
 scripts/build-release.sh --team <TEAMID> --credentials /path/to/GoogleCredentials.json
 ```
 
-The signed app lands in both `dist/TaskTether-<version>.dmg` (a classic drag-to-Applications disk image — recommended) and `dist/TaskTether-<version>.zip`. Both are signed with an Apple Development certificate, not notarised — recipients still need the right-click → Open step above.
+The signed app lands in `dist/TaskTether-<version>.pkg` (an installer that launches the app once it is installed — recommended), `dist/TaskTether-<version>.dmg` (a classic drag-to-Applications disk image) and `dist/TaskTether-<version>.zip`. The app, zip and dmg are signed with an Apple Development certificate; the pkg is unsigned (that would need a separate Developer ID Installer certificate). Nothing is notarised — recipients still need the right-click → Open step above, on the pkg or on the app.
 
 - `--team <TEAMID>` selects the signing certificate: the ID shown in parentheses by `security find-identity -v -p codesigning`. Required unless `--adhoc` is passed; `DEVELOPMENT_TEAM` in the environment works too.
 - `--credentials <path>` bakes `GoogleCredentials.json` into the app bundle before signing, so the recipient can skip the Google Cloud setup entirely. This is the recommended way to share a build with a teammate. Everyone using that build shares one OAuth client, which is fine for a small team — each person still signs in with their own Google account.
 - `--adhoc` signs ad-hoc instead, for building on a machine without the team's signing certificate.
-- `--no-dmg` skips building the `.dmg` and produces only the `.zip`.
+- `--no-dmg` skips building the `.dmg`.
+- `--no-pkg` skips building the `.pkg`.
 
 ---
 

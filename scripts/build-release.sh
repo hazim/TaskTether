@@ -4,7 +4,7 @@
 # for direct sharing (owner + colleague). No notarisation, no App Store.
 #
 # Usage:
-#   scripts/build-release.sh [--credentials <path>] [--team <TEAMID>] [--adhoc] [--out <dir>] [--no-dmg]
+#   scripts/build-release.sh [--credentials <path>] [--team <TEAMID>] [--adhoc] [--out <dir>] [--no-dmg] [--no-pkg]
 #
 #   --credentials <path>  Copy this file in as GoogleCredentials.json inside
 #                          the built app's Contents/Resources before signing.
@@ -17,6 +17,9 @@
 #   --out <dir>            Output directory for the zip and dmg (default: dist/).
 #   --no-dmg               Skip building the drag-to-Applications .dmg (built
 #                          by default alongside the .zip).
+#   --no-pkg               Skip building the .pkg installer (built by default;
+#                          its postinstall step launches the app right after
+#                          install so it appears in the menu bar immediately).
 #
 set -euo pipefail
 
@@ -28,6 +31,7 @@ TEAM="${DEVELOPMENT_TEAM:-}"
 ADHOC=0
 OUT_DIR_ARG="dist"
 DMG_ENABLED=1
+PKG_ENABLED=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -41,6 +45,8 @@ while [[ $# -gt 0 ]]; do
       OUT_DIR_ARG="$2"; shift 2 ;;
     --no-dmg)
       DMG_ENABLED=0; shift ;;
+    --no-pkg)
+      PKG_ENABLED=0; shift ;;
     -h|--help)
       grep '^#' "$0" | sed 's/^#//'; exit 0 ;;
     *)
@@ -300,6 +306,40 @@ if [[ $DMG_ENABLED -eq 1 ]]; then
   make_dmg
 fi
 
+# ---------------------------------------------------------------------------
+# Package: .pkg installer that launches the app once installed
+# ---------------------------------------------------------------------------
+# Signing a .pkg needs a "Developer ID Installer" certificate, which the
+# Apple Development identity used for the app does not include, so the
+# package is left unsigned. Recipients right-click -> Open it once; the
+# app it installs is not quarantined, so the app itself needs no such step.
+make_pkg() {
+  local pkg_name="TaskTether-${VERSION}.pkg"
+  local pkg_path="$OUT_DIR/$pkg_name"
+  local scripts_dir="$SCRIPT_DIR/pkg-scripts"
+
+  rm -f "$pkg_path"
+  echo "==> Building installer package $pkg_name"
+  pkgbuild \
+    --component "$APP_PATH" \
+    --install-location /Applications \
+    --scripts "$scripts_dir" \
+    --identifier com.hazim.TaskTether \
+    --version "$VERSION" \
+    "$pkg_path"
+
+  PKG_PATH="$pkg_path"
+  PKG_SIZE="$(du -h "$pkg_path" | cut -f1)"
+  PKG_SHA="$(shasum -a 256 "$pkg_path" | awk '{print $1}')"
+}
+
+PKG_PATH=""
+PKG_SIZE=""
+PKG_SHA=""
+if [[ $PKG_ENABLED -eq 1 ]]; then
+  make_pkg
+fi
+
 echo ""
 echo "=================================================================="
 echo " Build complete"
@@ -313,8 +353,21 @@ if [[ -n "$DMG_PATH" ]]; then
   echo " Size:   $DMG_SIZE"
   echo " SHA256: $DMG_SHA"
 fi
+if [[ -n "$PKG_PATH" ]]; then
+  echo ""
+  echo " Pkg:    $PKG_PATH"
+  echo " Size:   $PKG_SIZE"
+  echo " SHA256: $PKG_SHA"
+fi
 echo ""
-echo " Recipient instructions (.dmg — recommended):"
+echo " Recipient instructions (.pkg — installs and starts the app):"
+echo "   1. Right-click (or Control-click) TaskTether-${VERSION}.pkg and"
+echo "      choose Open, then confirm — the package is not notarised."
+echo "   2. Click through the installer (admin password required)."
+echo "   3. TaskTether launches by itself and appears in the menu bar."
+echo "      It registers itself to launch at login on first start."
+echo ""
+echo " Recipient instructions (.dmg — drag install, no admin password):"
 echo "   1. Open TaskTether-${VERSION}.dmg"
 echo "   2. Drag TaskTether.app onto the Applications shortcut"
 echo "   3. Eject the TaskTether disk image"
