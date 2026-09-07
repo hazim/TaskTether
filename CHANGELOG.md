@@ -4,6 +4,13 @@ All notable changes to TaskTether are documented here.
 
 ---
 
+## [1.2.4] — 2026-09-07
+
+### Added
+- **Panel opens by itself on first launch** — when the app starts on a Mac with no Google account connected, it opens its panel once so the "Connect Google Account" step is in front of the user without them having to find the menu bar icon. Happens only once per Mac and never for upgrades of an already-connected install.
+
+---
+
 ## [1.2.3] — 2026-09-07
 
 ### Fixed

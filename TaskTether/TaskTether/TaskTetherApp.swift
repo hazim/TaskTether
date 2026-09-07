@@ -110,6 +110,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         setupMenuBar()
         setupBadge()
         setupLaunchAtLoginDefault()
+        // Give the status item a moment to land in the menu bar; the panel
+        // is positioned from its on-screen frame.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.showWelcomePanelIfNeeded()
+        }
 
         // Posted by the Settings gear button — the panel must close before
         // the Settings window opens or its .popUpMenu level would cover it.
@@ -141,6 +146,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             print("LoginItemManager: failed to enable launch at login — \(error)")
             #endif
         }
+    }
+
+    // First launch on this Mac with no Google account connected: open the
+    // panel once so a new user sees "Connect Google Account" straight away
+    // instead of having to find the menu bar icon (which a crowded menu bar
+    // can even hide). Never repeats, and never fires for an upgrade of an
+    // already-connected install.
+    private func showWelcomePanelIfNeeded() {
+        let key = "tasktether_welcome_shown"
+        guard !authManager.isAuthenticated,
+              !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        showPanel()
     }
 
     private func applyActivationPolicy() {
