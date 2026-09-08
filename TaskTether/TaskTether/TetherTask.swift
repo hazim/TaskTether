@@ -30,6 +30,12 @@ struct TetherTask: Identifiable, Equatable {
     var googleTasksId: String?         // Google Tasks API id field
     var parentGoogleId: String?        // Google Tasks parent ID — nil for top-level tasks
 
+    // Id of the ListPair this task belongs to (D7). Set by SyncEngine when a
+    // task is attributed to a list pair; nil only for a task created
+    // optimistically in the UI before it has been placed, and for rows read
+    // from a pre-multi-list snapshot (which SnapshotStore rejects outright).
+    var listPairId: String?
+
     // MARK: - Content
 
     var title:       String
@@ -59,6 +65,34 @@ struct TetherTask: Identifiable, Equatable {
         lhs.isCompleted == rhs.isCompleted &&
         lhs.dueDate     == rhs.dueDate
     }
+
+    // MARK: - Overdue
+
+    // True when the task has a due date that has already passed (relative to
+    // the noon-UTC day boundary, see noonUTC(for:) below) and the task isn't
+    // completed yet. Single source of truth — SyncEngine.overdueTasks and the
+    // TaskRow display model both derive from this.
+    var isOverdue: Bool {
+        guard !isCompleted, let dueDate else { return false }
+        return dueDate < TetherTask.noonUTC()
+    }
+
+    // Returns noon UTC for the LOCAL calendar date of the given time.
+    // Critical: must use the LOCAL calendar to extract year/month/day,
+    // not UTC — otherwise tasks appear on the wrong day for users east of UTC.
+    // Example: 00:30 Budapest (UTC+1) = 23:30 UTC previous day.
+    // UTC calendar gives yesterday; local calendar correctly gives today.
+    static func noonUTC(for date: Date = Date()) -> Date {
+        // Extract date components in the user's local timezone
+        let local = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        // Store as noon UTC for consistent cross-platform comparison
+        var utcCal = Calendar(identifier: .gregorian)
+        utcCal.timeZone = TimeZone(identifier: "UTC")!
+        return utcCal.date(from: DateComponents(
+            timeZone: TimeZone(identifier: "UTC"),
+            year: local.year, month: local.month, day: local.day, hour: 12
+        )) ?? date
+    }
 }
 
 // MARK: - TetherSource
@@ -78,6 +112,7 @@ extension TetherTask {
         self.remindersId    = reminder.calendarItemIdentifier
         self.googleTasksId  = nil
         self.parentGoogleId = nil
+        self.listPairId     = nil
         self.title          = reminder.title ?? ""
         self.isCompleted   = reminder.isCompleted
 
@@ -125,6 +160,7 @@ extension TetherTask {
         self.remindersId    = nil
         self.googleTasksId  = googleTask.id
         self.parentGoogleId = googleTask.parentId
+        self.listPairId     = nil
         self.title          = googleTask.title
         self.notes         = googleTask.notes
         self.isCompleted   = googleTask.isCompleted
@@ -147,7 +183,8 @@ extension TetherTask {
             isCompleted: isCompleted,
             isSubtask:   parentGoogleId != nil,
             url:         url,
-            subtasks:    []
+            subtasks:    [],
+            isOverdue:   isOverdue
         )
     }
 }

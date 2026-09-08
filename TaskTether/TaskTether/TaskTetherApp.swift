@@ -12,6 +12,7 @@
 
 import SwiftUI
 import AppKit
+import Combine
 
 // MARK: - App Entry Point
 
@@ -37,6 +38,9 @@ struct TaskTetherApp: App {
 extension Notification.Name {
     // Requests the AppDelegate to close the menu bar panel.
     static let taskTetherHidePanel = Notification.Name("taskTetherHidePanel")
+    // Posted by the Settings badge toggle so the AppDelegate refreshes the
+    // menu bar item immediately instead of waiting for the next task sync.
+    static let taskTetherBadgeSettingChanged = Notification.Name("taskTetherBadgeSettingChanged")
 }
 
 // MARK: - KeyablePanel
@@ -64,6 +68,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var statusItem:   NSStatusItem?
     private var panel:        NSPanel?
     private var eventMonitor: Any?
+    private var badgeCancellable: AnyCancellable?
 
     // Screen-space anchor: right edge of the status item button and the
     // bottom edge of the menu bar. These are stored when the panel first
@@ -75,6 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: init
 
     override init() {
+        #if DEBUG
+        // Line-buffer stdout so DEBUG prints reach a redirected log as they
+        // happen instead of only at a clean exit.
+        setvbuf(stdout, nil, _IOLBF, 0)
+        #endif
         let theme  = ThemeManager()
         let auth   = GoogleAuthManager()
         let remind = RemindersManager()
@@ -98,6 +108,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         applyActivationPolicy()
         setupMenuBar()
+        setupBadge()
+        setupLaunchAtLoginDefault()
+        // Give the status item a moment to land in the menu bar; the panel
+        // is positioned from its on-screen frame.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.showWelcomePanelIfNeeded()
+        }
 
         // Posted by the Settings gear button — the panel must close before
         // the Settings window opens or its .popUpMenu level would cover it.
@@ -106,6 +123,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ) { [weak self] _ in
             self?.hidePanel()
         }
+    }
+
+    // Launch at login defaults to ON. Re-registers on every launch (not just
+    // the first) because SMAppService pins the bundle path at registration —
+    // a user who first ran from Downloads and later moved the app to
+    // /Applications would otherwise stay pointed at the stale path.
+    // register() is idempotent, so this is a no-op once already correct.
+    // Skips an ephemeral bundle path (DMG mount or Gatekeeper translocation),
+    // where registering is pointless.
+    private func setupLaunchAtLoginDefault() {
+        guard LoginItemManager.isSupported else { return }
+        if UserDefaults.standard.object(forKey: "launchAtLogin") == nil {
+            UserDefaults.standard.set(true, forKey: "launchAtLogin")
+        }
+        guard UserDefaults.standard.bool(forKey: "launchAtLogin"),
+              !LoginItemManager.isRunningFromEphemeralLocation else { return }
+        do {
+            try LoginItemManager.setEnabled(true)
+        } catch {
+            #if DEBUG
+            print("LoginItemManager: failed to enable launch at login — \(error)")
+            #endif
+        }
+    }
+
+    // First launch on this Mac with no Google account connected: open the
+    // panel once so a new user sees "Connect Google Account" straight away
+    // instead of having to find the menu bar icon (which a crowded menu bar
+    // can even hide). Never repeats, and never fires for an upgrade of an
+    // already-connected install.
+    private func showWelcomePanelIfNeeded() {
+        let key = "tasktether_welcome_shown"
+        guard !authManager.isAuthenticated,
+              !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        showPanel()
     }
 
     private func applyActivationPolicy() {
@@ -163,6 +216,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         p.contentView?.layer?.masksToBounds = true
 
         panel = p
+    }
+
+    // MARK: - Menu Bar Badge
+
+    // Subscribes to task changes and the Settings toggle so the badge stays
+    // current without waiting for the panel to be opened.
+    private func setupBadge() {
+        badgeCancellable = syncEngine.$tasks
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.updateBadge() }
+
+        NotificationCenter.default.addObserver(
+            forName: .taskTetherBadgeSettingChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.updateBadge()
+        }
+
+        updateBadge()
+    }
+
+    // Shows the count of incomplete top-level tasks next to the status item
+    // icon, matching what the main task list displays (subtasks excluded).
+    private func updateBadge() {
+        guard let button = statusItem?.button else { return }
+
+        let enabled = UserDefaults.standard.object(forKey: "showMenuBarBadge") as? Bool ?? false
+        let count = syncEngine.tasks.filter { !$0.isCompleted && $0.parentGoogleId == nil }.count
+
+        button.imagePosition = .imageLeading
+        button.title = (enabled && count > 0) ? " \(count)" : ""
+        statusItem?.length = button.title.isEmpty
+            ? NSStatusItem.squareLength
+            : NSStatusItem.variableLength
     }
 
     // MARK: - Toggle

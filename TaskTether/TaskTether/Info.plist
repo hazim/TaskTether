@@ -5,7 +5,7 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>TaskTether needs access to Reminders to sync your TaskTether list with Google Tasks.</string>
+	<string>TaskTether needs access to Reminders to sync your lists with Google Tasks.</string>
 	<key>CFBundleURLTypes</key>
 	<array/>
 </dict>

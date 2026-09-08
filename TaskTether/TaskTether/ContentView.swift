@@ -270,6 +270,10 @@ struct MainContainerView: View {
 
     // MARK: - Live Task State
 
+    // Only tasks due today, across every synced list. Overdue tasks are
+    // deliberately not listed: with every list syncing they number in the
+    // hundreds and drown out the day. This list is display-only — StatsStore
+    // is fed exclusively from todayTasks (see SyncEngine.sync()).
     private var tasks: [TetherTaskItem] {
         syncEngine.todayTasks.map { $0.toDisplayItem() }
     }

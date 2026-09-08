@@ -16,6 +16,10 @@ import Foundation
 struct SnapshotTask: Codable {
     let remindersId:   String?
     let googleTasksId: String?
+    // Nil only in a snapshot written before multi-list sync. load() treats a
+    // single such row as "no usable baseline" and returns nil, which forces
+    // one reconciliation sync (D8) — the path that never deletes.
+    let listPairId:    String?
     let title:         String
     let notes:         String?
     let isCompleted:   Bool
@@ -45,11 +49,18 @@ final class SnapshotStore {
               let decoded = try? JSONDecoder().decode([SnapshotTask].self, from: data)
         else { return nil }
 
+        // Pre-multi-list rows carry no list attribution, so the per-pair diff
+        // could not tell which pair they belonged to and would read every one
+        // of them as "deleted from this list". Reject the whole snapshot
+        // instead — the caller then runs a reconciliation sync (D8).
+        guard !decoded.contains(where: { $0.listPairId == nil }) else { return nil }
+
         return decoded.map { snap in
             TetherTask(
                 id:            UUID().uuidString,
                 remindersId:   snap.remindersId,
                 googleTasksId: snap.googleTasksId,
+                listPairId:    snap.listPairId,
                 title:         snap.title,
                 notes:         snap.notes,
                 isCompleted:   snap.isCompleted,
@@ -67,6 +78,7 @@ final class SnapshotStore {
             SnapshotTask(
                 remindersId:   task.remindersId,
                 googleTasksId: task.googleTasksId,
+                listPairId:    task.listPairId,
                 title:         task.title,
                 notes:         task.notes,
                 isCompleted:   task.isCompleted,

@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# postinstall — runs after Installer has copied TaskTether.app into place.
+#
+# Launches the app for the logged-in user so it shows up in the menu bar
+# immediately, without the person having to find and open it. From then
+# on the app's own launch-at-login registration takes over; nothing here
+# touches login items.
+#
+# $2 is the install location Installer used (normally /Applications).
+#
+set -u
+
+APP="$2/TaskTether.app"
+[[ -d "$APP" ]] || exit 0
+
+USER_NAME="$(stat -f %Su /dev/console)"
+[[ "$USER_NAME" == "root" ]] && exit 0
+USER_UID="$(id -u "$USER_NAME")"
+
+# Installer runs this as root for a system install and as the user for a
+# home-directory install; only hop users when we actually have to.
+run_as_user() {
+  if [[ "$(id -u)" == "$USER_UID" ]]; then
+    "$@"
+  else
+    launchctl asuser "$USER_UID" sudo -u "$USER_NAME" "$@"
+  fi
+}
+
+# Quit a running copy so the freshly installed version is what starts.
+# Wait for it to go away: `open` against a still-running instance would
+# only activate the old process instead of launching the new build.
+run_as_user pkill -x TaskTether 2>/dev/null || true
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  run_as_user pgrep -x TaskTether >/dev/null 2>&1 || break
+  sleep 0.5
+done
+run_as_user open "$APP" || true
+exit 0

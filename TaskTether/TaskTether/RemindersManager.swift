@@ -15,7 +15,6 @@ class RemindersManager: ObservableObject {
     @Published var errorMessage: String? = nil
     
     private let store = EKEventStore()
-    private let listName = "TaskTether"
 
     // Always store dates as noon UTC so no timezone offset shifts the day.
     // Hungary (UTC+1) local midnight = 23:00 prev day UTC without this fix.
@@ -62,7 +61,6 @@ class RemindersManager: ObservableObject {
                 DispatchQueue.main.async {
                     if granted {
                         self.isAuthorised = true
-                        self.createTaskTetherListIfNeeded()
                     } else {
                         self.isAuthorised = false
                         self.errorMessage = String(localized: "error.reminders.denied.v14")
@@ -74,7 +72,6 @@ class RemindersManager: ObservableObject {
                 DispatchQueue.main.async {
                     if granted {
                         self.isAuthorised = true
-                        self.createTaskTetherListIfNeeded()
                     } else {
                         self.isAuthorised = false
                         self.errorMessage = String(localized: "error.reminders.denied.v12")
@@ -83,73 +80,115 @@ class RemindersManager: ObservableObject {
             }
         }
     }
-    
-    // MARK: - TaskTether List
-    
-    private func createTaskTetherListIfNeeded() {
-        let calendars = store.calendars(for: .reminder)
-        
-        // Check if TaskTether list already exists
-        if calendars.first(where: { $0.title == listName }) != nil {
-            #if DEBUG
-            print("TaskTether list already exists in Reminders")
-            #endif
-            return
+
+    // MARK: - Lists
+
+    /// The Reminders list EventKit would use for a new reminder created outside
+    /// TaskTether — used by SyncEngine to pick the default pair for inline "add task" (D6).
+    var defaultListId: String? {
+        store.defaultCalendarForNewReminders()?.calendarIdentifier
+    }
+
+    /// Whether a Reminders list is eligible for sync (D5): must allow content
+    /// modifications, and must not be a subscription or birthday calendar.
+    private func isEligibleList(_ calendar: EKCalendar) -> Bool {
+        calendar.allowsContentModifications && calendar.type != .subscription && calendar.type != .birthday
+    }
+
+    /// All Reminders lists eligible for sync (D5).
+    func fetchLists() -> [ReminderList] {
+        store.calendars(for: .reminder)
+            .filter(isEligibleList)
+            .map { ReminderList(id: $0.calendarIdentifier, title: $0.title) }
+            .sorted { $0.title < $1.title }
+    }
+
+    /// Creates a new Reminders list. Mirrors the source-picking behaviour of
+    /// the old createTaskTetherListIfNeeded, with a fallback for the case
+    /// where there is no default calendar for new reminders yet — the
+    /// fallback source must come from an eligible (D5) list, since a
+    /// read-only/subscription/birthday source may reject new calendars.
+    func createList(title: String) -> String? {
+        guard let source = store.defaultCalendarForNewReminders()?.source
+            ?? store.calendars(for: .reminder).first(where: isEligibleList)?.source
+        else {
+            DispatchQueue.main.async {
+                self.errorMessage = String(format: String(localized: "error.reminders.createlist"), "no Reminders source available")
+            }
+            return nil
         }
-        
-        // Create it
+
         let newList = EKCalendar(for: .reminder, eventStore: store)
-        newList.title = listName
-        newList.source = store.defaultCalendarForNewReminders()?.source
-        
+        newList.title = title
+        newList.source = source
+
         do {
             try store.saveCalendar(newList, commit: true)
             #if DEBUG
-            print("Created TaskTether list in Reminders")
+            print("Created Reminders list: \(title)")
             #endif
+            return newList.calendarIdentifier
         } catch {
             DispatchQueue.main.async {
                 self.errorMessage = String(format: String(localized: "error.reminders.createlist"), error.localizedDescription)
             }
+            return nil
         }
     }
-    
-    // MARK: - Read Tasks
-    
-    func fetchTasks() -> [EKReminder] {
-        guard isAuthorised else { return [] }
-        
-        let calendars = store.calendars(for: .reminder)
-        guard let taskTetherList = calendars.first(where: { $0.title == listName }) else {
-            return []
-        }
 
-        // Fetch both incomplete AND completed reminders.
-        // Without this, completed reminders are invisible to the diff and
-        // deletions of completed tasks are never detected.
-        let incompletePredicate = store.predicateForReminders(in: [taskTetherList])
+    func renameList(id: String, title: String) -> Bool {
+        guard let calendar = store.calendar(withIdentifier: id) else { return false }
+        calendar.title = title
+        do {
+            try store.saveCalendar(calendar, commit: true)
+            return true
+        } catch {
+            #if DEBUG
+            print("Failed to rename list: \(error)")
+            #endif
+            return false
+        }
+    }
+
+    // MARK: - Read Tasks
+
+    // Returns nil when the fetch itself failed (not authorised, or EventKit
+    // handed either completion a nil array) — distinct from a real empty
+    // result. Callers must not treat nil as "no reminders": doing so lets a
+    // transient EventKit failure look like every task was deleted.
+    func fetchTasks() -> [EKReminder]? {
+        guard isAuthorised else { return nil }
+
+        // Fetch both incomplete AND completed reminders, across every
+        // eligible list — passing nil fetches all reminder calendars.
+        // Without completed reminders, deletions of completed tasks are
+        // never detected by the diff. Callers read reminder.calendar.calendarIdentifier
+        // to attribute each reminder to its list pair.
+        let incompletePredicate = store.predicateForReminders(in: nil)
         let completedPredicate  = store.predicateForCompletedReminders(
             withCompletionDateStarting: nil,
             ending: nil,
-            calendars: [taskTetherList]
+            calendars: nil
         )
 
-        var incomplete: [EKReminder] = []
-        var completed:  [EKReminder] = []
+        var incomplete: [EKReminder]?
+        var completed:  [EKReminder]?
 
         let sem1 = DispatchSemaphore(value: 0)
         store.fetchReminders(matching: incompletePredicate) { reminders in
-            incomplete = reminders ?? []
+            incomplete = reminders
             sem1.signal()
         }
         sem1.wait()
 
         let sem2 = DispatchSemaphore(value: 0)
         store.fetchReminders(matching: completedPredicate) { reminders in
-            completed = reminders ?? []
+            completed = reminders
             sem2.signal()
         }
         sem2.wait()
+
+        guard let incomplete, let completed else { return nil }
 
         // Deduplicate by calendarItemIdentifier — EventKit can return the same
         // reminder in both the incomplete and completed predicates, which causes
@@ -170,7 +209,7 @@ class RemindersManager: ObservableObject {
     // Used by SyncEngine to retrieve the live object before updating or deleting.
 
     func fetchTask(by id: String) -> EKReminder? {
-        return fetchTasks().first { $0.calendarItemIdentifier == id }
+        return store.calendarItem(withIdentifier: id) as? EKReminder
     }
 
     // MARK: - Write Tasks
@@ -230,15 +269,19 @@ class RemindersManager: ObservableObject {
     }
 
     @discardableResult
-    func createTask(title: String, dueDate: Date? = nil, notes: String? = nil, url: URL? = nil) -> String? {
+    func createTask(title: String, dueDate: Date? = nil, notes: String? = nil, url: URL? = nil, listId: String) -> String? {
         guard isAuthorised else { return nil }
 
-        let calendars = store.calendars(for: .reminder)
-        guard let taskTetherList = calendars.first(where: { $0.title == listName }) else { return nil }
+        guard let list = store.calendar(withIdentifier: listId) else {
+            DispatchQueue.main.async {
+                self.errorMessage = "Could not find Reminders list \(listId)"
+            }
+            return nil
+        }
 
         let reminder = EKReminder(eventStore: store)
         reminder.title    = title
-        reminder.calendar = taskTetherList
+        reminder.calendar = list
         reminder.notes    = notes
         reminder.url      = url
 
@@ -285,6 +328,23 @@ class RemindersManager: ObservableObject {
             #if DEBUG
             print("Failed to delete task: \(error)")
             #endif
+        }
+    }
+
+    /// Moves a reminder to a different list. Used by SyncEngine's move pass (D4)
+    /// when a task's list changed on the Google side.
+    @discardableResult
+    func moveTask(_ reminder: EKReminder, toListId: String) -> Bool {
+        guard let list = store.calendar(withIdentifier: toListId) else { return false }
+        reminder.calendar = list
+        do {
+            try store.save(reminder, commit: true)
+            return true
+        } catch {
+            #if DEBUG
+            print("Failed to move task: \(error)")
+            #endif
+            return false
         }
     }
 }

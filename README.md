@@ -23,10 +23,15 @@ Apple Reminders  ◄──────────────►  Google Tasks
 
 TaskTether runs as a menu bar app on your Mac. On a configurable interval it compares your Reminders and Google Tasks lists, detects differences, and syncs changes in both directions using Apple's native EventKit framework and the Google Tasks API.
 
+Every editable Reminders list is synced with a Google Tasks list of the same name — this includes the default "Reminders" list and Google's "My Tasks". A list created on either side is created on the other side automatically, and renaming a list on one side renames its counterpart. Moving a task from one list to another follows the same rule: the move happens on the other side too.
+
+Lists are paired by name the first time they're seen; after that, the pairing tracks the list itself, so renaming it doesn't break the sync. Deleting a list is never mirrored — if you delete a list on one side, its counterpart on the other side simply stops syncing and keeps its tasks. If you want to stop a list from syncing entirely, delete it on one side; if you also want the tasks gone, delete the other side's list yourself.
+
 ---
 
 ## Features
 
+- **Multi-list sync** — every Reminders list syncs with a Google Tasks list of the same name; lists created, renamed, or moved between on either side follow on the other
 - **Two-way sync** — changes on either side propagate automatically
 - **Conflict resolution** — most recently modified version wins
 - **Subtask support** — subtasks from Google Tasks appear grouped under their parent
@@ -52,7 +57,9 @@ TaskTether runs as a menu bar app on your Mac. On a configurable interval it com
 
 ## Installation
 
-TaskTether is currently available as source only. See [Building from source](#building-from-source) below.
+**Pre-built binary** (from a teammate or GitHub Releases) — the easiest route is the `.pkg`: open it (macOS blocks it once because it is not notarised: right-click → **Open** on macOS 14 and earlier, **System Settings → Privacy & Security → Open Anyway** on macOS 15+) and click through the installer. TaskTether launches by itself when the installer finishes and appears in the menu bar. If you were given a `.dmg` instead: open the `.dmg`, drag `TaskTether.app` onto the `Applications` shortcut, then eject the disk image. On first launch, right-click (or Control-click) `TaskTether.app` in `/Applications` and choose **Open**. The app isn't notarised, so Gatekeeper will otherwise refuse to launch it; right-click → Open (or **System Settings → Privacy & Security → Open Anyway**) is a one-time step. If you were given a `.zip` instead, unzip it and drag `TaskTether.app` to `/Applications` before following the same first-launch step.
+
+**Building from source** — see [Building from source](#building-from-source) below.
 
 ---
 
@@ -80,21 +87,16 @@ When prompted for application type, choose **Desktop app** and name it `TaskTeth
 2. Open `Contents → Resources`
 3. Copy `GoogleCredentials.json` into that folder
 
-### Step 4 — Add your redirect URI
+> No redirect URI registration needed — TaskTether is a Desktop app OAuth client, so Google accepts any loopback address. TaskTether picks a free `localhost` port automatically each time it signs in.
 
-1. Back in Google Cloud Console, go to **APIs & Services → Credentials**
-2. Click on your OAuth 2.0 Client ID to open it
-3. Under **Authorised redirect URIs**, click **+ Add URI**
-4. Enter `http://localhost:8080` → **Save**
-
-### Step 5 — Connect your account
+### Step 4 — Connect your account
 
 1. Open TaskTether from the menu bar
 2. Click **Connect Google Account**
 3. Your browser opens — sign in and click Allow
 4. TaskTether is now connected and will start syncing
 
-### Step 6 — Grant Reminders access
+### Step 5 — Grant Reminders access
 
 The first time TaskTether accesses Reminders, macOS will ask for permission. Click **Allow**.
 
@@ -115,6 +117,22 @@ cd TaskTether
 4. Press **Cmd+R** to build and run
 
 Requires Xcode 15 or later.
+
+### Building a distributable .zip
+
+`scripts/build-release.sh` builds, signs, and packages the app for sharing:
+
+```bash
+scripts/build-release.sh --team <TEAMID> --credentials /path/to/GoogleCredentials.json
+```
+
+The signed app lands in `dist/TaskTether-<version>.pkg` (an installer that launches the app once it is installed — recommended), `dist/TaskTether-<version>.dmg` (a classic drag-to-Applications disk image) and `dist/TaskTether-<version>.zip`. The app, zip and dmg are signed with an Apple Development certificate; the pkg is unsigned (that would need a separate Developer ID Installer certificate). Nothing is notarised — recipients still need the right-click → Open step above, on the pkg or on the app.
+
+- `--team <TEAMID>` selects the signing certificate: the ID shown in parentheses by `security find-identity -v -p codesigning`. Required unless `--adhoc` is passed; `DEVELOPMENT_TEAM` in the environment works too.
+- `--credentials <path>` bakes `GoogleCredentials.json` into the app bundle before signing, so the recipient can skip the Google Cloud setup entirely. This is the recommended way to share a build with a teammate. Everyone using that build shares one OAuth client, which is fine for a small team — each person still signs in with their own Google account.
+- `--adhoc` signs ad-hoc instead, for building on a machine without the team's signing certificate.
+- `--no-dmg` skips building the `.dmg`.
+- `--no-pkg` skips building the `.pkg`.
 
 ---
 

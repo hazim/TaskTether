@@ -100,6 +100,28 @@ private struct GeneralSettingsTab: View {
     // Applied on next launch via NSApp.setActivationPolicy in TaskTetherApp.init().
     @State private var showInDock: Bool = UserDefaults.standard.bool(forKey: "showInDock")
 
+    // Reads and writes the menu bar badge preference stored in UserDefaults.
+    // Defaults to false (hidden) when the key has never been set: with every
+    // list syncing the count is in the hundreds and reads as noise.
+    @State private var showMenuBarBadge: Bool =
+        UserDefaults.standard.object(forKey: "showMenuBarBadge") as? Bool ?? false
+
+    // Reads and writes the launch-at-login preference. Defaults to true
+    // (matching the first-launch behaviour in AppDelegate) when the key has
+    // never been set. Unsupported pre-macOS 13 — see LoginItemManager.
+    @State private var launchAtLogin: Bool =
+        UserDefaults.standard.object(forKey: "launchAtLogin") as? Bool ?? true
+
+    // Set when SMAppService register()/unregister() throws; shown as a small
+    // footnote under the toggle and cleared on the next successful change.
+    @State private var launchAtLoginError: String?
+
+    // Guards against onChange re-firing when setLaunchAtLogin reverts
+    // `launchAtLogin` after a failed register()/unregister() — without this
+    // the revert itself triggers another setLaunchAtLogin call, which
+    // clears launchAtLoginError right after it was set.
+    @State private var isRevertingLaunchAtLogin = false
+
     private func deferred<T>(_ keyPath: ReferenceWritableKeyPath<ThemeManager, T>) -> Binding<T> {
         Binding(
             get: { themeManager[keyPath: keyPath] },
@@ -114,6 +136,9 @@ private struct GeneralSettingsTab: View {
             } else {
                 legacyCards
             }
+        }
+        .onAppear {
+            reconcileLaunchAtLogin()
         }
         .alert(
             String(localized: "settings.customtheme.error.title"),
@@ -157,6 +182,17 @@ private struct GeneralSettingsTab: View {
                 Text(String(localized: "settings.section.dock"))
             } footer: {
                 SettingsFooterText(String(localized: "settings.dock.restart_hint"))
+            }
+
+            Section {
+                badgeRow
+                launchAtLoginRow
+            } header: {
+                Text(String(localized: "settings.section.badge"))
+            } footer: {
+                if !LoginItemManager.isSupported {
+                    SettingsFooterText(String(localized: "settings.launchAtLogin.unsupported"))
+                }
             }
 
             Section {
@@ -219,6 +255,15 @@ private struct GeneralSettingsTab: View {
                     footer: String(localized: "settings.dock.restart_hint")
                 ) {
                     dockRow
+                }
+                LegacySection(
+                    title:  String(localized: "settings.section.badge"),
+                    footer: LoginItemManager.isSupported
+                        ? nil
+                        : String(localized: "settings.launchAtLogin.unsupported")
+                ) {
+                    badgeRow
+                    launchAtLoginRow
                 }
                 LegacySection(title: String(localized: "settings.section.sync")) {
                     syncRow
@@ -334,6 +379,70 @@ private struct GeneralSettingsTab: View {
             .onChange(of: showInDock) { newValue in
                 UserDefaults.standard.set(newValue, forKey: "showInDock")
             }
+    }
+
+    // Takes effect immediately — onChange notifies the AppDelegate, which
+    // recomputes the badge without needing a relaunch.
+    private var badgeRow: some View {
+        Toggle(String(localized: "settings.badge.label"), isOn: $showMenuBarBadge)
+            .onChange(of: showMenuBarBadge) { newValue in
+                UserDefaults.standard.set(newValue, forKey: "showMenuBarBadge")
+                NotificationCenter.default.post(name: .taskTetherBadgeSettingChanged, object: nil)
+            }
+    }
+
+    // Disabled with no interaction pre-macOS 13 — the section footer explains
+    // why. When enabled, a failed register()/unregister() reverts the toggle
+    // and surfaces the error inline rather than changing the stored default.
+    @ViewBuilder
+    private var launchAtLoginRow: some View {
+        if LoginItemManager.isSupported {
+            Toggle(String(localized: "settings.launchAtLogin.label"), isOn: $launchAtLogin)
+                .onChange(of: launchAtLogin) { newValue in
+                    guard !isRevertingLaunchAtLogin else {
+                        isRevertingLaunchAtLogin = false
+                        return
+                    }
+                    setLaunchAtLogin(newValue)
+                }
+            if let launchAtLoginError {
+                Text(launchAtLoginError)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red)
+            }
+        } else {
+            Toggle(String(localized: "settings.launchAtLogin.label"), isOn: .constant(false))
+                .disabled(true)
+        }
+    }
+
+    private func setLaunchAtLogin(_ newValue: Bool) {
+        UserDefaults.standard.set(newValue, forKey: "launchAtLogin")
+        do {
+            try LoginItemManager.setEnabled(newValue)
+            launchAtLoginError = nil
+        } catch {
+            isRevertingLaunchAtLogin = true
+            launchAtLogin = !newValue
+            UserDefaults.standard.set(!newValue, forKey: "launchAtLogin")
+            launchAtLoginError = error.localizedDescription
+        }
+    }
+
+    // Reconciles the toggle with the system's actual registration state
+    // (macOS 13+ only — LoginItemManager.isEnabled is always false pre-13).
+    // Run on every settings appearance so removing the item via
+    // System Settings → Login Items shows as OFF here instead of a stale ON.
+    // Skipped from an ephemeral bundle path (DMG mount / translocation): the
+    // app never registers from there, so isEnabled would read false and
+    // permanently stomp the stored preference before the app is even
+    // installed to its real location.
+    private func reconcileLaunchAtLogin() {
+        guard LoginItemManager.isSupported,
+              !LoginItemManager.isRunningFromEphemeralLocation else { return }
+        let actual = LoginItemManager.isEnabled
+        launchAtLogin = actual
+        UserDefaults.standard.set(actual, forKey: "launchAtLogin")
     }
 
     private var syncRow: some View {

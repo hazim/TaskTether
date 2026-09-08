@@ -4,6 +4,88 @@ All notable changes to TaskTether are documented here.
 
 ---
 
+## [1.2.4] — 2026-09-07
+
+### Fixed
+- **Release builds are not sandboxed again** — 1.2.2 and 1.2.3 were accidentally signed with Xcode's auto-generated App Sandbox entitlement (the release script only re-signed when `--credentials` was passed). A sandboxed build keeps its settings, list pairings and Google sign-in in a separate container, so upgrading to those versions looked like a fresh install. The script now always re-signs with the shipping entitlements and refuses to package a sandboxed app.
+
+### Added
+- **Panel opens by itself on first launch** — when the app starts on a Mac with no Google account connected, it opens its panel once so the "Connect Google Account" step is in front of the user without them having to find the menu bar icon. Happens only once per Mac and never for upgrades of an already-connected install.
+
+---
+
+## [1.2.3] — 2026-09-07
+
+### Fixed
+- **Google sign-in no longer lost on relaunch** — the keychain migration that runs at startup matched the current token entries as well as the legacy ones it was meant to clean up, and deleted them. Every launch after the first sign-in (a reboot, an update, a reinstall) forced a fresh "Connect Google Account". Tokens now survive relaunches and app updates.
+- **Offline launches keep the account connected** — a failed token refresh only signs the user out when Google reports the token as revoked or expired (`invalid_grant`). No network, DNS failures, or a Google outage leave the stored tokens in place; the connection is retried on every sync tick and sync resumes once the network is back.
+
+### Added
+- **`.pkg` installer** — `scripts/build-release.sh` now also produces `dist/TaskTether-<version>.pkg`. Its postinstall step launches the app right after installation, so it appears in the menu bar immediately; the app then registers its own launch-at-login. Apps installed by a package are not quarantined, so the right-click → Open step applies to the package only. Skip with `--no-pkg`.
+
+---
+
+## [1.2.2] — 2026-09-07
+
+### Fixed
+- **No Dock icon at launch** — the app now declares `LSUIElement`, so it starts as a menu-bar-only agent. Previously it launched as a regular app (Dock bounce, Cmd-Tab entry) and switched to agent mode a moment later. The "Show in Dock" setting still works.
+
+---
+
+## [1.2.1] — 2026-09-04
+
+### Changed
+- **Popover lists only tasks due today** — overdue tasks are no longer listed above today's tasks. With every Reminders list syncing, the overdue set ran into the hundreds and buried the day. The overdue row indicator is unchanged for tasks that are due today.
+- **Release script requires a signing team** — `scripts/build-release.sh` no longer defaults to a hardcoded team ID; pass `--team <TEAMID>` (or set `DEVELOPMENT_TEAM`) or use `--adhoc`.
+- **Menu bar task count is off by default** — the badge counted every incomplete task across all lists. It can still be turned on in Settings → "Show task count in menu bar".
+
+---
+
+## [1.2.0] — 2026-09-04
+
+### Added
+- **Multi-list sync** — TaskTether no longer syncs a single hardcoded "TaskTether" list. Every editable Reminders list now syncs with a Google Tasks list of the same name, including the default "Reminders" list and Google's "My Tasks". A list created on either side is created on the other. Renaming a list on one side renames its counterpart. Moving a task from one list to another on either side moves it on the other side too.
+
+### Changed
+- **List deletion is never mirrored** — deleting a list on one side no longer has any effect on the other side. The surviving list keeps its tasks and simply stops syncing; deleting it too is a separate, deliberate action.
+- **Migration** — the first sync after upgrading is a one-time reconciliation pass that never deletes anything; it re-links existing tasks and pairs the old "TaskTether" lists on each side automatically by name.
+
+### Fixed
+- **Fetch failures no longer look like empty lists** — a network error, non-2xx response or unreadable reply from Google, or an EventKit failure, now aborts that sync cycle with an error state instead of being read as "the list is empty". Previously three consecutive failed cycles (for example, being offline for 45 minutes at the 15-minute interval) could delete tasks.
+- **Tasks moved into a non-synced list are parked, not deleted** — a linked task moved into a list that no longer syncs (a retired pair's survivor or a read-only list) keeps its counterpart; nothing is deleted on the other side.
+
+---
+
+## [1.1.1] — 2026-09-03
+
+### Added
+- **Launch at login** — TaskTether registers itself as a login item on first start (macOS 13 or later) and re-checks on every launch; a Settings → Menu Bar toggle controls it and reflects the real login-item status.
+- **DMG packaging** — `scripts/build-release.sh` now also produces a signed, classic drag-to-Applications `.dmg` alongside the `.zip` (skip with `--no-dmg`).
+
+---
+
+## [1.1.0] — 2026-09-03
+
+### Security
+- **OAuth sign-in listener bound to localhost only** — the local server used during Google sign-in previously listened on all interfaces, making it reachable from other devices on the LAN during sign-in. It now binds to 127.0.0.1 only.
+- **OAuth flow hardened with a state nonce and PKCE** — each sign-in attempt now generates a unique `state` value and a PKCE challenge (S256); callbacks with a missing or mismatched state are rejected, and the redirect URI is now `http://127.0.0.1:<port>`.
+- **Local OAuth callback server hardened against malformed requests** — requests are now parsed strictly, with malformed or non-GET requests returning 400. Google's `error=access_denied` response is now handled directly, so a cancelled sign-in no longer spins forever, and connections are always closed.
+- **Google Tasks API URLs built safely** — request URLs are now built with `URLComponents` and percent-encoded IDs instead of force-unwrapped string interpolation, removing a crash risk.
+
+### Fixed
+- **Empty Reminders fetch no longer risks deleting Google Tasks** — the sync engine now treats an empty Reminders fetch as suspicious for one cycle, mirroring the existing guard on the Google side, so a transient EventKit or permissions glitch can no longer delete tasks in Google Tasks.
+
+### Added
+- **Overdue task indicator** — incomplete tasks past their due date now appear above today's tasks with a warning icon.
+- **Menu bar badge** — shows the number of incomplete tasks (Settings → Menu Bar toggle, on by default).
+- **Sync failure notification** — a macOS notification appears when sync fails three times in a row, and periodically thereafter while it keeps failing.
+- **`scripts/build-release.sh`** — builds a signed (not notarised) distributable .zip into `dist/`, optionally baking in `GoogleCredentials.json` (`--credentials`) or ad-hoc signing (`--adhoc`).
+
+### Changed
+- **README cleanup** — removed the stale step to register a `http://localhost:8080` redirect URI (the app now picks a free loopback port automatically); added binary installation and Gatekeeper instructions.
+
+---
+
 ## [1.0.3] — 2026-05-05
 
 ### Fixed

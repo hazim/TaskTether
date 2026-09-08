@@ -17,6 +17,11 @@ struct TetherTaskItem: Identifiable, Equatable {
     var isSubtask:   Bool
     var url:         URL?
     var subtasks:    [TetherSubtaskItem]
+
+    // Whether this task is overdue — computed once from TetherTask.isOverdue
+    // (the single source of truth, see TetherTask.swift) and stored here so
+    // the display model doesn't duplicate the noon-UTC comparison logic.
+    var isOverdue:   Bool = false
 }
 
 struct TetherSubtaskItem: Identifiable, Equatable {
@@ -60,6 +65,13 @@ struct TaskRow: View {
                 .modifier(ConditionalStrikethrough(active: task.isCompleted))
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            if task.isOverdue {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(themeManager.danger)
+                    .accessibilityLabel(String(localized: "task.overdue"))
+            }
 
             if task.url != nil {
                 Image(systemName: "link")
